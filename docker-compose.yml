@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: cloudmail-app
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    networks:
+      - default
