@@ -1,0 +1,8 @@
+name = "cloudmail-email-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+BACKEND_URL = "https://your-cloudmail-platform.com"
+
+# Set secret via: wrangler secret put INGEST_SECRET
