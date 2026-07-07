@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { emails, domains, apiKeys } from "@/lib/db/schema";
-import { sql, eq, gte, desc } from "drizzle-orm";
+import { sql, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Globe, Key, Users, TrendingUp } from "lucide-react";
 import { RecentEmails } from "@/components/dashboard/recent-emails";
@@ -12,18 +12,19 @@ function getStats() {
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const todayEpoch = Math.floor(todayStart.getTime() / 1000);
   const emailsToday =
     db
       .select({ count: sql<number>`COUNT(*)` })
       .from(emails)
-      .where(gte(emails.receivedAt, todayStart))
+      .where(sql`${emails.receivedAt} >= ${todayEpoch}`)
       .get()?.count ?? 0;
 
   const activeDomains =
     db
       .select({ count: sql<number>`COUNT(*)` })
       .from(domains)
-      .where(eq(domains.isActive, true))
+      .where(sql`${domains.isActive} = 1`)
       .get()?.count ?? 0;
 
   const uniqueAddresses =
@@ -36,7 +37,7 @@ function getStats() {
     db
       .select({ count: sql<number>`COUNT(*)` })
       .from(apiKeys)
-      .where(eq(apiKeys.isActive, true))
+      .where(sql`${apiKeys.isActive} = 1`)
       .get()?.count ?? 0;
 
   return { totalEmails, emailsToday, activeDomains, uniqueAddresses, activeApiKeys };
@@ -72,12 +73,15 @@ function getActivityData() {
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + 1);
 
+    const startEpoch = Math.floor(date.getTime() / 1000);
+    const endEpoch = Math.floor(nextDate.getTime() / 1000);
+
     const count =
       db
         .select({ count: sql<number>`COUNT(*)` })
         .from(emails)
         .where(
-          sql`${emails.receivedAt} >= ${date} AND ${emails.receivedAt} < ${nextDate}`
+          sql`${emails.receivedAt} >= ${startEpoch} AND ${emails.receivedAt} < ${endEpoch}`
         )
         .get()?.count ?? 0;
 
