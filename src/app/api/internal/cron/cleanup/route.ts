@@ -14,9 +14,9 @@ export async function GET() {
       return NextResponse.json({ deleted: 0, message: "Retensi diatur ke selamanya" });
     }
 
-    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+    const cutoffEpoch = Math.floor((Date.now() - retentionDays * 24 * 60 * 60 * 1000) / 1000);
 
-    const oldEmails = db.select({ id: emails.id }).from(emails).where(lt(emails.receivedAt, cutoff)).all();
+    const oldEmails = db.select({ id: emails.id }).from(emails).where(sql`${emails.receivedAt} < ${cutoffEpoch}`).all();
 
     for (const email of oldEmails) {
       const atts = db.select({ storagePath: attachments.storagePath }).from(attachments).where(eq(attachments.emailId, email.id)).all();
@@ -27,7 +27,7 @@ export async function GET() {
     }
 
     if (oldEmails.length > 0) {
-      db.delete(emails).where(lt(emails.receivedAt, cutoff)).run();
+      db.delete(emails).where(sql`${emails.receivedAt} < ${cutoffEpoch}`).run();
     }
 
     const rateLimitCutoff = Math.floor(Date.now() / 1000 / 60) - 10;
