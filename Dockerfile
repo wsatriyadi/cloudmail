@@ -17,7 +17,6 @@ ENV NODE_ENV=production
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 
 # Copy better-sqlite3 native bindings
 COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
