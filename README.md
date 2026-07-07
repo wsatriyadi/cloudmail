@@ -300,6 +300,77 @@ server {
 }
 ```
 
+## MCP Server (AI Integration)
+
+CloudMail includes a [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that lets AI assistants like Claude, Cursor, and OpenCode interact with your temporary email platform directly.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `generate_email` | Generate a temporary email identity with AI-generated fake persona |
+| `generate_bulk_emails` | Generate multiple temporary email identities at once (1-20) |
+| `check_inbox` | Check inbox for a temporary email address |
+| `read_email` | Read full email content including body, headers, OTP extraction |
+| `create_alias` | Create a custom email alias with optional expiration |
+| `list_aliases` | List all active email aliases |
+| `delete_alias` | Delete an email alias |
+
+### Setup
+
+1. Install dependencies:
+```bash
+cd mcp-server
+npm install
+```
+
+2. Create an API key in the CloudMail dashboard (`/dashboard/api-keys`) with `generate` and `inbox` permissions.
+
+3. Add to your MCP client config:
+
+**Claude Desktop** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "cloudmail": {
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "/path/to/cloudmail/mcp-server",
+      "env": {
+        "CLOUDMAIL_API_URL": "https://your-domain.com",
+        "CLOUDMAIL_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+**OpenCode** (`opencode.json`):
+```json
+{
+  "mcp": {
+    "cloudmail": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["tsx", "src/index.ts"],
+      "cwd": "/path/to/cloudmail/mcp-server",
+      "env": {
+        "CLOUDMAIL_API_URL": "https://your-domain.com",
+        "CLOUDMAIL_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### Example Usage
+
+Once connected, ask your AI assistant:
+- "Generate a temporary email for me"
+- "Check the inbox for user@yourdomain.com"
+- "Read the latest email and extract the OTP code"
+- "Create an alias that expires in 30 minutes"
+
 ## License
 
 MIT
