@@ -34,8 +34,9 @@ export async function GET(request: Request) {
             .limit(20);
 
           // If since is provided, only get newer emails
+          // Convert ISO string to epoch seconds (SQLite stores receivedAt as epoch int)
           const results = since
-            ? query.where(sql`${emails.receivedAt} > ${new Date(since)}`).all()
+            ? query.where(sql`${emails.receivedAt} > ${Math.floor(new Date(since).getTime() / 1000)}`).all()
             : query.all();
 
           if (results.length > 0) {
