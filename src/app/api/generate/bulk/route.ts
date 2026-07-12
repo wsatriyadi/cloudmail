@@ -3,7 +3,7 @@ import { authenticateApiRequest } from "@/lib/api-auth";
 import { generateIdentity, generateUsername } from "@/lib/llm";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 export async function POST(request: Request) {
   const authResult = await authenticateApiRequest(request);
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const activeDomains = db
       .select({ id: domains.id, domain: domains.domain })
       .from(domains)
-      .where(eq(domains.isActive, true))
+      .where(sql`${domains.isActive} = 1`)
       .all();
 
     if (activeDomains.length === 0) {

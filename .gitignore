@@ -7,3 +7,11 @@ data/
 .env.local
 *.tsbuildinfo
 next-env.d.ts
+
+# Agent artifacts
+.omo/
+
+# Flutter build artifacts
+mobile/android/build/
+mobile/build/
+mobile/.dart_tool/
