@@ -25,7 +25,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Pencil, Loader2, Globe, Info } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Plus, Trash2, Pencil, Loader2, Globe, Info, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Domain {
@@ -51,10 +52,21 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
   const [description, setDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
 
+  // Bulk add state
+  const [addMode, setAddMode] = useState("single");
+  const [bulkText, setBulkText] = useState("");
+  const [bulkResult, setBulkResult] = useState<{
+    added: string[];
+    skipped: { domain: string; reason: string }[];
+  } | null>(null);
+
   function resetForm() {
     setDomain("");
     setDescription("");
     setIsActive(true);
+    setAddMode("single");
+    setBulkText("");
+    setBulkResult(null);
   }
 
   async function handleAdd() {
@@ -72,6 +84,35 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
       setShowSetup(true);
       resetForm();
       router.refresh();
+    } catch (err: any) {
+      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleBulkAdd() {
+    setLoading(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/dashboard/domains/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domains: bulkText, description, isActive }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setBulkResult({ added: data.added, skipped: data.skipped });
+      toast({
+        title: "Selesai",
+        description: `${data.addedCount} domain ditambahkan, ${data.skippedCount} dilewati`,
+      });
+      // Sisakan hanya baris yang gagal agar mudah diperbaiki
+      setBulkText(data.skipped.map((s: { domain: string }) => s.domain).join("\n"));
+      if (data.addedCount > 0) {
+        router.refresh();
+        if (data.skippedCount === 0) setShowSetup(true);
+      }
     } catch (err: any) {
       toast({ title: "Gagal", description: err.message, variant: "destructive" });
     } finally {
@@ -154,27 +195,86 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
                 Masukkan domain yang akan digunakan untuk menerima email sementara.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Domain</Label>
-                <Input placeholder="mail.contoh.com" value={domain} onChange={(e) => setDomain(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Deskripsi (opsional)</Label>
-                <Textarea placeholder="Catatan tentang domain ini" value={description} onChange={(e) => setDescription(e.target.value)} />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={isActive} onCheckedChange={setIsActive} />
-                <Label>Aktif</Label>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAdd(false)}>Batal</Button>
-              <Button onClick={handleAdd} disabled={loading || !domain}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Tambah
-              </Button>
-            </DialogFooter>
+            <Tabs value={addMode} onValueChange={(v) => { setAddMode(v); setBulkResult(null); }}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="single">Satu Domain</TabsTrigger>
+                <TabsTrigger value="bulk">Banyak Domain</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="single">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Domain</Label>
+                    <Input placeholder="mail.contoh.com" value={domain} onChange={(e) => setDomain(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Deskripsi (opsional)</Label>
+                    <Textarea placeholder="Catatan tentang domain ini" value={description} onChange={(e) => setDescription(e.target.value)} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={isActive} onCheckedChange={setIsActive} />
+                    <Label>Aktif</Label>
+                  </div>
+                </div>
+                <DialogFooter className="mt-4">
+                  <Button variant="outline" onClick={() => setShowAdd(false)}>Batal</Button>
+                  <Button onClick={handleAdd} disabled={loading || !domain}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Tambah
+                  </Button>
+                </DialogFooter>
+              </TabsContent>
+
+              <TabsContent value="bulk">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Daftar Domain</Label>
+                    <Textarea
+                      placeholder={"mail.contoh.com\nmail.contoh2.com\nmail.contoh3.com"}
+                      className="min-h-[140px] font-mono text-sm"
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Satu domain per baris. Baris kosong, duplikat, format tidak valid, dan yang sudah terdaftar akan dilewati otomatis.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Deskripsi (opsional)</Label>
+                    <Textarea placeholder="Diterapkan ke semua domain di daftar" value={description} onChange={(e) => setDescription(e.target.value)} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={isActive} onCheckedChange={setIsActive} />
+                    <Label>Aktif</Label>
+                  </div>
+
+                  {bulkResult && (
+                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-3 text-sm">
+                      {bulkResult.added.length > 0 && (
+                        <p className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-4 w-4" />
+                          {bulkResult.added.length} ditambahkan
+                        </p>
+                      )}
+                      {bulkResult.skipped.map((s) => (
+                        <p key={s.domain} className="flex items-center gap-2 text-muted-foreground">
+                          <XCircle className="h-4 w-4 text-destructive" />
+                          <span className="font-mono">{s.domain}</span>
+                          <span className="text-xs">— {s.reason}</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <DialogFooter className="mt-4">
+                  <Button variant="outline" onClick={() => setShowAdd(false)}>Tutup</Button>
+                  <Button onClick={handleBulkAdd} disabled={loading || !bulkText.trim()}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Tambah Semua
+                  </Button>
+                </DialogFooter>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>

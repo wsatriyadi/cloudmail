@@ -108,6 +108,28 @@ function randomDateOfBirth(): string {
   return `${year}-${mm}-${dd}`;
 }
 
+// Beberapa endpoint/model LLM mengabaikan response_format json_object dan
+// membungkus output dalam markdown fence (```json ... ```) atau menambah teks.
+// Bersihkan dulu sebelum JSON.parse agar tidak "Unexpected token '`'".
+function parseLLMJson(raw: string): any {
+  let text = raw.trim();
+
+  // Ambil isi di dalam code fence bila ada
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) {
+    text = fence[1].trim();
+  }
+
+  // Fallback: iris dari '{' pertama sampai '}' terakhir
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) {
+    text = text.slice(first, last + 1);
+  }
+
+  return JSON.parse(text.trim());
+}
+
 export async function generateIdentity(): Promise<{
   firstName: string;
   lastName: string;
@@ -164,7 +186,7 @@ Use exactly this gender and dateOfBirth in your JSON. Pick a ${style} ${gender} 
     throw new Error("LLM tidak mengembalikan response");
   }
 
-  const parsed = JSON.parse(content);
+  const parsed = parseLLMJson(content);
 
   return {
     firstName: String(parsed.firstName ?? "").trim(),

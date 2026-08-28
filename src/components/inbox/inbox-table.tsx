@@ -76,31 +76,42 @@ export function InboxTable({ emails, domains }: { emails: Email[]; domains: Doma
   return (
     <div className="space-y-4">
       {/* Realtime indicator */}
-      <div className="flex items-center gap-2 text-sm">
-        <span className={`h-2 w-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
-        <span className="text-muted-foreground">
-          {connected ? "Realtime aktif" : "Menghubungkan..."}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${connected ? "bg-success" : "bg-muted-foreground"}`}
+          aria-hidden="true"
+        />
+        <span role="status" className="text-muted-foreground">
+          {connected ? "Realtime aktif" : "Menghubungkan…"}
         </span>
         {newCount > 0 && (
-          <Badge variant="default" className="cursor-pointer" onClick={() => { resetCount(); router.refresh(); }}>
-            {newCount} email baru
-          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              resetCount();
+              router.refresh();
+            }}
+          >
+            Muat {newCount} email baru
+          </Button>
         )}
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Cari alamat, pengirim, atau subjek..."
+            placeholder="Cari alamat, pengirim, atau subjek"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
+            aria-label="Cari email"
           />
         </div>
         <Select value={domainFilter} onValueChange={setDomainFilter}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filter domain">
             <SelectValue placeholder="Semua domain" />
           </SelectTrigger>
           <SelectContent>
@@ -116,13 +127,17 @@ export function InboxTable({ emails, domains }: { emails: Email[]; domains: Doma
 
       {/* Email List */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed py-12 text-muted-foreground">
-          <Inbox className="mb-3 h-10 w-10" />
-          <p>Tidak ada email ditemukan</p>
-          <p className="text-sm">
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed px-6 py-14 text-center">
+          <Inbox className="mb-3 h-9 w-9 text-muted-foreground" aria-hidden="true" />
+          <p className="font-medium">
             {search || domainFilter !== "all"
-              ? "Coba ubah filter pencarian Anda."
-              : "Email akan muncul di sini setelah diterima."}
+              ? "Tidak ada email yang cocok"
+              : "Belum ada email masuk"}
+          </p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            {search || domainFilter !== "all"
+              ? "Ubah kata kunci atau pilih domain lain."
+              : "Email yang dikirim ke domain aktif akan muncul di sini secara otomatis."}
           </p>
         </div>
       ) : (
@@ -153,15 +168,23 @@ export function InboxTable({ emails, domains }: { emails: Email[]; domains: Doma
                       )}
                     </TableCell>
                     <TableCell>
-                      <Link href={`/dashboard/inbox/${email.id}`} className="hover:underline">
+                      <Link
+                        href={`/dashboard/inbox/${email.id}`}
+                        className="break-anywhere rounded-sm hover:underline"
+                      >
                         {email.fromName || email.fromAddress}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">{email.toAddress}</span>
+                      <span className="break-anywhere text-sm text-muted-foreground">
+                        {email.toAddress}
+                      </span>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/dashboard/inbox/${email.id}`} className="hover:underline">
+                      <Link
+                        href={`/dashboard/inbox/${email.id}`}
+                        className="break-anywhere rounded-sm hover:underline"
+                      >
                         {email.subject}
                       </Link>
                     </TableCell>
@@ -181,9 +204,9 @@ export function InboxTable({ emails, domains }: { emails: Email[]; domains: Doma
                           <KeyRound className="h-3 w-3" />
                           {email.otpCode}
                           {copiedOtp === email.otpCode ? (
-                            <Check className="h-3 w-3 text-green-500" />
+                            <Check className="h-3 w-3 text-success" aria-hidden="true" />
                           ) : (
-                            <Copy className="h-3 w-3" />
+                            <Copy className="h-3 w-3" aria-hidden="true" />
                           )}
                         </Button>
                       )}

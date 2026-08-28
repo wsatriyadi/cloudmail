@@ -1,16 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertCircle, BookOpen, Mail, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  // Read on submit instead of useSearchParams: that hook would force the whole
+  // page under a Suspense boundary just to recover the post-login redirect.
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,40 +38,52 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setError("Email atau password salah");
+        setError("Email atau password salah. Periksa kembali dan coba lagi.");
       } else {
-        router.push("/dashboard");
+        const callbackUrl = new URLSearchParams(window.location.search).get(
+          "callbackUrl"
+        );
+        router.push(callbackUrl?.startsWith("/") ? callbackUrl : "/dashboard");
         router.refresh();
       }
     } catch {
-      setError("Terjadi kesalahan. Coba lagi.");
+      setError("Tidak bisa terhubung ke server. Coba lagi sebentar lagi.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 py-10">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <Mail className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">CloudMail</CardTitle>
-          <CardDescription>Masuk ke dashboard admin</CardDescription>
+        <CardHeader className="items-center text-center">
+          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-primary">
+            <Mail className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
+          </span>
+          <CardTitle className="text-xl">Masuk ke CloudMail</CardTitle>
+          <CardDescription>
+            Kelola domain, alias, dan kotak masuk dari satu dashboard.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <p
+                role="alert"
+                className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 {error}
-              </div>
+              </p>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
+                inputMode="email"
+                autoComplete="username"
                 placeholder="admin@cloudmail.local"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -73,7 +94,9 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -81,12 +104,20 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Masuk
+              {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              {loading ? "Memproses" : "Masuk"}
             </Button>
           </form>
         </CardContent>
       </Card>
+
+      <Link
+        href="/docs"
+        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:text-foreground"
+      >
+        <BookOpen className="h-4 w-4" aria-hidden="true" />
+        Baca dokumentasi API
+      </Link>
     </div>
   );
 }

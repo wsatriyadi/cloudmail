@@ -14,10 +14,21 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex min-h-screen flex-col lg:h-screen lg:flex-row lg:overflow-hidden">
+      <a
+        href="#konten-utama"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+      >
+        Lompat ke konten utama
+      </a>
       <AppSidebar />
-      <main className="flex-1 overflow-y-auto bg-background">
-        <div className="container mx-auto p-6">{children}</div>
+      <main
+        id="konten-utama"
+        className="flex-1 bg-background lg:h-screen lg:overflow-y-auto"
+      >
+        <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          {children}
+        </div>
       </main>
       <Toaster />
     </div>

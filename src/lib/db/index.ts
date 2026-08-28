@@ -17,6 +17,9 @@ const sqlite = new Database(dbPath);
 // Enable WAL mode untuk performa lebih baik
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");
+// Tunggu (bukan langsung error SQLITE_BUSY) saat ada koneksi lain yang mengunci —
+// mencegah race saat next build membuka DB dari beberapa worker paralel.
+sqlite.pragma("busy_timeout = 5000");
 
 export const db = drizzle(sqlite, { schema });
 export { sqlite };

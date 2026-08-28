@@ -1,71 +1,144 @@
 @import "tailwindcss";
 
+/*
+  CloudMail design system — Swiss/minimal, built for dense technical data.
+  Neutrals are slate-based so the blue primary reads as intentional, not decorative.
+  Every color is a token: components must never hardcode `bg-blue-500`.
+*/
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(240 10% 3.9%);
+  --color-background: hsl(210 40% 98%);
+  --color-foreground: hsl(222 47% 11%);
+
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(240 10% 3.9%);
+  --color-card-foreground: hsl(222 47% 11%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(240 10% 3.9%);
-  --color-primary: hsl(240 5.9% 10%);
-  --color-primary-foreground: hsl(0 0% 98%);
-  --color-secondary: hsl(240 4.8% 95.9%);
-  --color-secondary-foreground: hsl(240 5.9% 10%);
-  --color-muted: hsl(240 4.8% 95.9%);
-  --color-muted-foreground: hsl(240 3.8% 46.1%);
-  --color-accent: hsl(240 4.8% 95.9%);
-  --color-accent-foreground: hsl(240 5.9% 10%);
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(240 5.9% 90%);
-  --color-input: hsl(240 5.9% 90%);
-  --color-ring: hsl(240 5.9% 10%);
-  --color-sidebar-background: hsl(0 0% 98%);
-  --color-sidebar-foreground: hsl(240 5.3% 26.1%);
-  --color-sidebar-primary: hsl(240 5.9% 10%);
-  --color-sidebar-primary-foreground: hsl(0 0% 98%);
-  --color-sidebar-accent: hsl(240 4.8% 95.9%);
-  --color-sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --color-sidebar-border: hsl(220 13% 91%);
-  --color-sidebar-ring: hsl(217.2 91.2% 59.8%);
-  --radius: 0.625rem;
+  --color-popover-foreground: hsl(222 47% 11%);
+
+  --color-primary: hsl(217 91% 55%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(214 32% 95%);
+  --color-secondary-foreground: hsl(222 47% 11%);
+
+  --color-muted: hsl(214 32% 95%);
+  /* slate-600: 4.5:1 minimum against the light background */
+  --color-muted-foreground: hsl(215 19% 35%);
+
+  --color-accent: hsl(214 32% 95%);
+  --color-accent-foreground: hsl(222 47% 11%);
+
+  --color-destructive: hsl(0 72% 45%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-success: hsl(142 60% 29%);
+  --color-success-foreground: hsl(0 0% 100%);
+  --color-warning: hsl(32 81% 34%);
+  --color-warning-foreground: hsl(0 0% 100%);
+  /* Reserved for the single highest-intent action per screen. */
+  --color-cta: hsl(21 90% 48%);
+  --color-cta-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(214 32% 89%);
+  --color-input: hsl(214 32% 85%);
+  --color-ring: hsl(217 91% 55%);
+
+  --color-sidebar-background: hsl(0 0% 100%);
+  --color-sidebar-foreground: hsl(215 19% 35%);
+  --color-sidebar-accent: hsl(214 32% 95%);
+  --color-sidebar-accent-foreground: hsl(222 47% 11%);
+  --color-sidebar-border: hsl(214 32% 89%);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  --color-background: hsl(222 47% 7%);
+  --color-foreground: hsl(210 40% 98%);
+
+  --color-card: hsl(222 40% 10%);
+  --color-card-foreground: hsl(210 40% 98%);
+  --color-popover: hsl(222 40% 10%);
+  --color-popover-foreground: hsl(210 40% 98%);
+
+  --color-primary: hsl(217 91% 62%);
+  --color-primary-foreground: hsl(222 47% 8%);
+
+  --color-secondary: hsl(217 28% 17%);
+  --color-secondary-foreground: hsl(210 40% 98%);
+
+  --color-muted: hsl(217 28% 17%);
+  --color-muted-foreground: hsl(215 20% 68%);
+
+  --color-accent: hsl(217 28% 17%);
+  --color-accent-foreground: hsl(210 40% 98%);
+
+  --color-destructive: hsl(0 72% 58%);
+  --color-destructive-foreground: hsl(222 47% 8%);
+  --color-success: hsl(142 65% 55%);
+  --color-success-foreground: hsl(222 47% 8%);
+  --color-warning: hsl(38 92% 60%);
+  --color-warning-foreground: hsl(222 47% 8%);
+  --color-cta: hsl(21 90% 58%);
+  --color-cta-foreground: hsl(222 47% 8%);
+
+  --color-border: hsl(215 25% 20%);
+  --color-input: hsl(215 25% 24%);
+  --color-ring: hsl(217 91% 62%);
+
+  --color-sidebar-background: hsl(222 44% 9%);
+  --color-sidebar-foreground: hsl(215 20% 68%);
+  --color-sidebar-accent: hsl(217 28% 17%);
+  --color-sidebar-accent-foreground: hsl(210 40% 98%);
+  --color-sidebar-border: hsl(215 25% 20%);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* One focus treatment for the whole app, so no component can quietly drop it. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-tight text-balance;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    @apply font-mono;
   }
 }
 
-.dark {
-  --color-background: hsl(240 10% 3.9%);
-  --color-foreground: hsl(0 0% 98%);
-  --color-card: hsl(240 10% 3.9%);
-  --color-card-foreground: hsl(0 0% 98%);
-  --color-popover: hsl(240 10% 3.9%);
-  --color-popover-foreground: hsl(0 0% 98%);
-  --color-primary: hsl(0 0% 98%);
-  --color-primary-foreground: hsl(240 5.9% 10%);
-  --color-secondary: hsl(240 3.7% 15.9%);
-  --color-secondary-foreground: hsl(0 0% 98%);
-  --color-muted: hsl(240 3.7% 15.9%);
-  --color-muted-foreground: hsl(240 5% 64.9%);
-  --color-accent: hsl(240 3.7% 15.9%);
-  --color-accent-foreground: hsl(0 0% 98%);
-  --color-destructive: hsl(0 62.8% 30.6%);
-  --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(240 3.7% 15.9%);
-  --color-input: hsl(240 3.7% 15.9%);
-  --color-ring: hsl(240 4.9% 83.9%);
-  --color-sidebar-background: hsl(240 5.9% 10%);
-  --color-sidebar-foreground: hsl(240 4.8% 95.9%);
-  --color-sidebar-primary: hsl(224.3 76.3% 48%);
-  --color-sidebar-primary-foreground: hsl(0 0% 100%);
-  --color-sidebar-accent: hsl(240 3.7% 15.9%);
-  --color-sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --color-sidebar-border: hsl(240 3.7% 15.9%);
-  --color-sidebar-ring: hsl(217.2 91.2% 59.8%);
+@layer utilities {
+  /* Long addresses and hashes must wrap instead of forcing horizontal scroll. */
+  .break-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
