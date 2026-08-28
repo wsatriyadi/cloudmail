@@ -1,19 +1,33 @@
 import { db } from "@/lib/db";
 import { emails, domains } from "@/lib/db/schema";
-import { desc, sql } from "drizzle-orm";
+import { desc, sql, count } from "drizzle-orm";
 import { InboxTable } from "@/components/inbox/inbox-table";
 
-export default function InboxPage() {
-  return <InboxContent />;
-}
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
+  const currentPage = Number(params.page) || 1;
+  const pageSize = 50;
+  const offset = (currentPage - 1) * pageSize;
 
-function InboxContent() {
   const allDomains = db
     .select({ id: domains.id, domain: domains.domain })
     .from(domains)
     .orderBy(domains.domain)
     .all();
 
+  // Get total count
+  const totalResult = db
+    .select({ count: count() })
+    .from(emails)
+    .get();
+  const totalEmails = totalResult?.count || 0;
+  const totalPages = Math.ceil(totalEmails / pageSize);
+
+  // Get paginated emails
   const emailList = db
     .select({
       id: emails.id,
@@ -31,7 +45,8 @@ function InboxContent() {
     })
     .from(emails)
     .orderBy(desc(emails.receivedAt))
-    .limit(100)
+    .limit(pageSize)
+    .offset(offset)
     .all();
 
   return (
@@ -39,10 +54,16 @@ function InboxContent() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Kotak Masuk</h1>
         <p className="text-muted-foreground">
-          Semua email yang diterima di seluruh domain.
+          Semua email yang diterima di seluruh domain. Email otomatis terhapus setelah 90 hari.
         </p>
       </div>
-      <InboxTable emails={emailList} domains={allDomains} />
+      <InboxTable
+        emails={emailList}
+        domains={allDomains}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalEmails={totalEmails}
+      />
     </div>
   );
 }

@@ -14,7 +14,10 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Mail, MailOpen, Paperclip, Search, Inbox, Copy, Check, KeyRound } from "lucide-react";
+import { 
+  Mail, MailOpen, Paperclip, Search, Inbox, Copy, Check, KeyRound,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+} from "lucide-react";
 import { getLabelInfo } from "@/lib/email-utils";
 import { useRealtimeInbox } from "@/hooks/use-realtime-inbox";
 
@@ -38,7 +41,21 @@ interface DomainOption {
   domain: string;
 }
 
-export function InboxTable({ emails, domains }: { emails: Email[]; domains: DomainOption[] }) {
+interface InboxTableProps {
+  emails: Email[];
+  domains: DomainOption[];
+  currentPage: number;
+  totalPages: number;
+  totalEmails: number;
+}
+
+export function InboxTable({ 
+  emails, 
+  domains,
+  currentPage,
+  totalPages,
+  totalEmails
+}: InboxTableProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
@@ -71,6 +88,10 @@ export function InboxTable({ emails, domains }: { emails: Email[]; domains: Doma
     await navigator.clipboard.writeText(code);
     setCopiedOtp(code);
     setTimeout(() => setCopiedOtp(null), 2000);
+  }
+
+  function goToPage(page: number) {
+    router.push(`/dashboard/inbox?page=${page}`);
   }
 
   return (
@@ -225,9 +246,58 @@ export function InboxTable({ emails, domains }: { emails: Email[]; domains: Doma
         </div>
       )}
 
-      <p className="text-sm text-muted-foreground">
-        Menampilkan {filtered.length} dari {emails.length} email
-      </p>
+      {/* Pagination */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Menampilkan {(currentPage - 1) * 50 + 1}-{Math.min(currentPage * 50, totalEmails)} dari {totalEmails} email
+        </p>
+        
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(1)}
+              disabled={currentPage === 1}
+              aria-label="Halaman pertama"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Halaman sebelumnya"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <span className="text-sm font-medium px-2 whitespace-nowrap">
+              Hal {currentPage} dari {totalPages}
+            </span>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              aria-label="Halaman berikutnya"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(totalPages)}
+              disabled={currentPage === totalPages}
+              aria-label="Halaman terakhir"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
