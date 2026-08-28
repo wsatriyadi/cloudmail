@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, AtSign, Copy, Check } from "lucide-react";
+import { Plus, Trash2, Loader2, AtSign, Copy, Check, Search } from "lucide-react";
 import { QRCode } from "@/components/ui/qr-code";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,11 +44,36 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Search & Filter
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [domainFilter, setDomainFilter] = useState("all");
+
   // Form
   const [localPart, setLocalPart] = useState("");
   const [selectedDomain, setSelectedDomain] = useState(domains[0]?.domain || "");
   const [description, setDescription] = useState("");
   const [expiresIn, setExpiresIn] = useState("0"); // 0 = never
+
+  // Filtered aliases
+  const filtered = useMemo(() => {
+    return aliases.filter((alias) => {
+      const matchSearch =
+        !search ||
+        alias.address.toLowerCase().includes(search.toLowerCase()) ||
+        (alias.description && alias.description.toLowerCase().includes(search.toLowerCase()));
+
+      const matchStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && !isExpired(alias.expiresAt)) ||
+        (statusFilter === "expired" && isExpired(alias.expiresAt));
+
+      const matchDomain =
+        domainFilter === "all" || alias.domainName === domainFilter;
+
+      return matchSearch && matchStatus && matchDomain;
+    });
+  }, [aliases, search, statusFilter, domainFilter]);
 
   function resetForm() {
     setLocalPart("");
@@ -66,34 +91,36 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
           localPart,
           domain: selectedDomain,
           description,
-          expiresInMinutes: parseInt(expiresIn) || null,
+          expiresIn: parseInt(expiresIn),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast({ title: "Berhasil", description: `Alias ${data.address} dibuat` });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Berhasil", description: "Alias dibuat" });
       setShowCreate(false);
       resetForm();
       router.refresh();
-    } catch (err: any) {
-      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
     } finally {
       setLoading(false);
     }
   }
 
   async function handleDelete(id: string) {
+    setLoading(true);
     try {
       const res = await fetch("/api/dashboard/aliases", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (!res.ok) throw new Error("Gagal menghapus");
-      toast({ title: "Alias dihapus" });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Berhasil", description: "Alias dihapus" });
       router.refresh();
-    } catch {
-      toast({ title: "Gagal menghapus", variant: "destructive" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -109,7 +136,50 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      {/* Header Actions */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Cari alamat atau deskripsi..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+              aria-label="Cari alias"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]" aria-label="Filter status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="active">Aktif</SelectItem>
+              <SelectItem value="expired">Kedaluwarsa</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Domain Filter */}
+          <Select value={domainFilter} onValueChange={setDomainFilter}>
+            <SelectTrigger className="w-[180px]" aria-label="Filter domain">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Domain</SelectItem>
+              {domains.map((d) => (
+                <SelectItem key={d.id} value={d.domain}>
+                  {d.domain}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Create Button */}
         <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Buat Alias</Button>
@@ -183,7 +253,7 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
         <DialogContent className="max-w-xs">
           <DialogHeader>
             <DialogTitle>QR Code</DialogTitle>
-            <DialogDescription>{showQR}</DialogDescription>
+            <DialogDescription className="break-all">{showQR}</DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-4">
             {showQR && <QRCode value={`mailto:${showQR}`} size={200} />}
@@ -195,11 +265,19 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
       </Dialog>
 
       {/* Table */}
-      {aliases.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed py-12 text-muted-foreground">
-          <AtSign className="mb-3 h-10 w-10" />
-          <p>Belum ada alias</p>
-          <p className="text-sm">Buat alias email kustom untuk mulai menerima email.</p>
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed px-6 py-14 text-center">
+          <AtSign className="mb-3 h-9 w-9 text-muted-foreground" aria-hidden="true" />
+          <p className="font-medium">
+            {search || statusFilter !== "all" || domainFilter !== "all"
+              ? "Tidak ada alias yang cocok"
+              : "Belum ada alias"}
+          </p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            {search || statusFilter !== "all" || domainFilter !== "all"
+              ? "Ubah kata kunci atau filter."
+              : "Buat alias email kustom untuk mulai menerima email."}
+          </p>
         </div>
       ) : (
         <div className="rounded-md border">
@@ -207,19 +285,23 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
             <TableHeader>
               <TableRow>
                 <TableHead>Alamat</TableHead>
+                <TableHead>Domain</TableHead>
                 <TableHead>Deskripsi</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead className="text-right">Email</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Kedaluwarsa</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {aliases.map((alias) => (
+              {filtered.map((alias) => (
                 <TableRow key={alias.id} className={isExpired(alias.expiresAt) ? "opacity-50" : ""}>
-                  <TableCell className="font-mono text-sm">{alias.address}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{alias.description || "-"}</TableCell>
-                  <TableCell>{alias.emailCount}</TableCell>
+                  <TableCell className="font-mono text-sm font-medium">{alias.localPart}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">@{alias.domainName}</TableCell>
+                  <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                    {alias.description || "-"}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">{alias.emailCount}</TableCell>
                   <TableCell>
                     {isExpired(alias.expiresAt) ? (
                       <Badge variant="destructive">Kedaluwarsa</Badge>
@@ -227,20 +309,35 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
                       <Badge variant="success">Aktif</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {alias.expiresAt
                       ? alias.expiresAt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })
                       : "Tidak pernah"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => copyAddress(alias.address)}>
-                        {copied === alias.address ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => copyAddress(alias.address)}
+                        title="Copy alamat"
+                      >
+                        {copied === alias.address ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setShowQR(alias.address)}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setShowQR(alias.address)}
+                        title="Tampilkan QR Code"
+                      >
                         <AtSign className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(alias.id)}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDelete(alias.id)}
+                        title="Hapus alias"
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -251,6 +348,10 @@ export function AliasTable({ aliases, domains }: { aliases: Alias[]; domains: Do
           </Table>
         </div>
       )}
+
+      <p className="text-sm text-muted-foreground">
+        Menampilkan {filtered.length} dari {aliases.length} alias
+      </p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +25,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash2, Pencil, Loader2, Globe, Info, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Globe, Info, CheckCircle2, XCircle, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Domain {
@@ -47,6 +54,10 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
   const [loading, setLoading] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
 
+  // Search & Filter
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
   // Form state
   const [domain, setDomain] = useState("");
   const [description, setDescription] = useState("");
@@ -57,14 +68,30 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
   const [bulkText, setBulkText] = useState("");
   const [bulkResult, setBulkResult] = useState<{
     added: string[];
-    skipped: { domain: string; reason: string }[];
+    skipped: Array<{ domain: string; reason: string }>;
   } | null>(null);
+
+  // Filtered domains
+  const filtered = useMemo(() => {
+    return domains.filter((d) => {
+      const matchSearch =
+        !search ||
+        d.domain.toLowerCase().includes(search.toLowerCase()) ||
+        (d.description && d.description.toLowerCase().includes(search.toLowerCase()));
+
+      const matchStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && d.isActive) ||
+        (statusFilter === "inactive" && !d.isActive);
+
+      return matchSearch && matchStatus;
+    });
+  }, [domains, search, statusFilter]);
 
   function resetForm() {
     setDomain("");
     setDescription("");
     setIsActive(true);
-    setAddMode("single");
     setBulkText("");
     setBulkResult(null);
   }
@@ -77,15 +104,13 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domain, description, isActive }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast({ title: "Berhasil", description: `Domain ${domain} ditambahkan` });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Berhasil", description: "Domain ditambahkan" });
       setShowAdd(false);
-      setShowSetup(true);
       resetForm();
       router.refresh();
-    } catch (err: any) {
-      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
     } finally {
       setLoading(false);
     }
@@ -93,28 +118,19 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
 
   async function handleBulkAdd() {
     setLoading(true);
-    setBulkResult(null);
     try {
       const res = await fetch("/api/dashboard/domains/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ domains: bulkText, description, isActive }),
       });
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setBulkResult({ added: data.added, skipped: data.skipped });
-      toast({
-        title: "Selesai",
-        description: `${data.addedCount} domain ditambahkan, ${data.skippedCount} dilewati`,
-      });
-      // Sisakan hanya baris yang gagal agar mudah diperbaiki
-      setBulkText(data.skipped.map((s: { domain: string }) => s.domain).join("\n"));
-      if (data.addedCount > 0) {
-        router.refresh();
-        if (data.skippedCount === 0) setShowSetup(true);
-      }
-    } catch (err: any) {
-      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+      setBulkResult(data);
+      toast({ title: "Berhasil", description: `${data.added.length} domain ditambahkan` });
+      router.refresh();
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
     } finally {
       setLoading(false);
     }
@@ -125,18 +141,17 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
     setLoading(true);
     try {
       const res = await fetch("/api/dashboard/domains", {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: showEdit.id, domain, description, isActive }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(await res.text());
       toast({ title: "Berhasil", description: "Domain diperbarui" });
       setShowEdit(null);
       resetForm();
       router.refresh();
-    } catch (err: any) {
-      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
     } finally {
       setLoading(false);
     }
@@ -150,13 +165,12 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(await res.text());
       toast({ title: "Berhasil", description: "Domain dihapus" });
       setShowDelete(null);
       router.refresh();
-    } catch (err: any) {
-      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
     } finally {
       setLoading(false);
     }
@@ -169,19 +183,44 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isActive: !currentActive }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error);
-      }
+      if (!res.ok) throw new Error(await res.text());
       router.refresh();
-    } catch (err: any) {
-      toast({ title: "Gagal", description: err.message, variant: "destructive" });
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
     }
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      {/* Header Actions */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Cari domain atau deskripsi..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+              aria-label="Cari domain"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]" aria-label="Filter status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="active">Aktif</SelectItem>
+              <SelectItem value="inactive">Nonaktif</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Add Button */}
         <Dialog open={showAdd} onOpenChange={(open) => { setShowAdd(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button>
@@ -357,11 +396,19 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
       </Dialog>
 
       {/* Table */}
-      {domains.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-md border border-dashed py-12 text-muted-foreground">
-          <Globe className="mb-3 h-10 w-10" />
-          <p>Belum ada domain</p>
-          <p className="text-sm">Tambahkan domain pertama Anda untuk mulai menerima email.</p>
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-md border border-dashed px-6 py-14 text-center">
+          <Globe className="mb-3 h-9 w-9 text-muted-foreground" aria-hidden="true" />
+          <p className="font-medium">
+            {search || statusFilter !== "all"
+              ? "Tidak ada domain yang cocok"
+              : "Belum ada domain"}
+          </p>
+          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+            {search || statusFilter !== "all"
+              ? "Ubah kata kunci atau filter status."
+              : "Tambahkan domain pertama Anda untuk mulai menerima email."}
+          </p>
         </div>
       ) : (
         <div className="rounded-md border">
@@ -369,16 +416,20 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Domain</TableHead>
+                <TableHead>Deskripsi</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Email Diterima</TableHead>
+                <TableHead className="text-right">Email</TableHead>
                 <TableHead>Dibuat</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {domains.map((d) => (
+              {filtered.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.domain}</TableCell>
+                  <TableCell className="font-mono text-sm font-medium">{d.domain}</TableCell>
+                  <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                    {d.description || "-"}
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={d.isActive ? "success" : "secondary"}
@@ -388,8 +439,10 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
                       {d.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{d.emailCount.toLocaleString("id-ID")}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-right font-medium">
+                    {d.emailCount.toLocaleString("id-ID")}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {d.createdAt.toLocaleDateString("id-ID", {
                       day: "numeric",
                       month: "short",
@@ -421,6 +474,10 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
           </Table>
         </div>
       )}
+
+      <p className="text-sm text-muted-foreground">
+        Menampilkan {filtered.length} dari {domains.length} domain
+      </p>
     </div>
   );
 }
