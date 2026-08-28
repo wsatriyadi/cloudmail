@@ -562,9 +562,86 @@ X-RateLimit-Remaining: 87`}
             ))}
           </section>
 
-          <section id="errors">
-            <MarkdownSection>{errorCodes}</MarkdownSection>
-          </section>
+          <Card id="errors">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold tracking-tight">Error Handling</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Semua error mengembalikan JSON dengan field <code className="px-1.5 py-0.5 rounded bg-muted text-xs">error</code>:
+              </p>
+              
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-4 py-3 text-left font-semibold">Status</th>
+                      <th className="px-4 py-3 text-left font-semibold">Meaning</th>
+                      <th className="px-4 py-3 text-left font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">400</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Bad Request</td>
+                      <td className="px-4 py-3 text-muted-foreground">Periksa format request body</td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">401</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Unauthorized</td>
+                      <td className="px-4 py-3 text-muted-foreground">API key salah atau kedaluwarsa</td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">403</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Forbidden</td>
+                      <td className="px-4 py-3 text-muted-foreground">Permission tidak mencukupi atau IP tidak diizinkan</td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">404</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Not Found</td>
+                      <td className="px-4 py-3 text-muted-foreground">Resource tidak ditemukan</td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">410</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Gone</td>
+                      <td className="px-4 py-3 text-muted-foreground">Alias kedaluwarsa — buat alias baru</td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">429</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Too Many Requests</td>
+                      <td className="px-4 py-3 text-muted-foreground">Tunggu sebentar, rate limit terlampaui</td>
+                    </tr>
+                    <tr className="border-b hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">500</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Internal Server Error</td>
+                      <td className="px-4 py-3 text-muted-foreground">Coba lagi atau hubungi admin</td>
+                    </tr>
+                    <tr className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="font-mono">503</Badge>
+                      </td>
+                      <td className="px-4 py-3 font-medium">Service Unavailable</td>
+                      <td className="px-4 py-3 text-muted-foreground">Tidak ada domain aktif atau LLM belum dikonfigurasi</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader>
