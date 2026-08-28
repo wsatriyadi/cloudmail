@@ -77,13 +77,15 @@ function EndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
 
   return (
     <Card id={endpoint.path.replace(/[{}]/g, "").replace(/\//g, "-").slice(1)}>
-      <CardHeader>
+      <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <MethodBadge method={endpoint.method} />
-          <code className="break-anywhere text-sm font-semibold">{endpoint.path}</code>
+          <code className="break-all text-sm font-semibold text-foreground">{endpoint.path}</code>
         </div>
-        <CardTitle className="text-lg">{endpoint.title}</CardTitle>
-        <CardDescription>{endpoint.description}</CardDescription>
+        <div>
+          <CardTitle className="text-lg">{endpoint.title}</CardTitle>
+          <CardDescription className="mt-1.5">{endpoint.description}</CardDescription>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
