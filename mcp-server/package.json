@@ -9,13 +9,21 @@
   },
   "scripts": {
     "start": "tsx src/index.ts",
+    "start:http": "tsx src/index.ts",
+    "test": "tsx src/test.ts",
     "build": "tsc"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
