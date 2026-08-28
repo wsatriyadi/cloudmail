@@ -8,6 +8,13 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+# Build dengan DB in-memory. `next build` menjalankan beberapa worker yang
+# masing-masing meng-import modul `db` (src/lib/db/index.ts) di top-level →
+# membuka koneksi SQLite. Jika pakai file yang sama, worker berebut lock dan
+# gagal dengan SQLITE_BUSY. :memory: membuat tiap worker punya DB sendiri.
+# Env ini hanya di stage builder; runner tidak mewarisinya, jadi runtime
+# tetap memakai DATABASE_PATH dari .env (./data/cloudmail.db).
+ENV DATABASE_PATH=":memory:"
 RUN npm run build
 
 FROM node:22-alpine AS runner

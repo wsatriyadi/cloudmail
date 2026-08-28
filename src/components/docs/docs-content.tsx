@@ -420,13 +420,140 @@ export function DocsContent() {
             </p>
           </div>
 
-          <section id="quick-start">
-            <MarkdownSection>{quickStart}</MarkdownSection>
-          </section>
+          <Card id="quick-start">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold tracking-tight">Quick Start</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-base font-semibold mb-3">1. Generate Identity</h3>
+                  <CodeBlock language="bash">
+{`curl -X POST https://yourdomain.com/api/generate \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}
+                  </CodeBlock>
+                  <p className="text-sm text-muted-foreground mt-2 mb-2">Response:</p>
+                  <CodeBlock language="json">
+{`{
+  "firstName": "Maya",
+  "lastName": "Patel",
+  "username": "maya.patel",
+  "gender": "female",
+  "dateOfBirth": "1992-07-08",
+  "email": "maya.patel@yourdomain.com",
+  "domain": "yourdomain.com"
+}`}
+                  </CodeBlock>
+                </div>
 
-          <section id="authentication">
-            <MarkdownSection>{authGuide}</MarkdownSection>
-          </section>
+                <div>
+                  <h3 className="text-base font-semibold mb-3">2. Check Inbox</h3>
+                  <CodeBlock language="bash">
+{`curl https://yourdomain.com/api/inbox/maya.patel@yourdomain.com \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}
+                  </CodeBlock>
+                  <p className="text-sm text-muted-foreground mt-2 mb-2">Response:</p>
+                  <CodeBlock language="json">
+{`{
+  "emails": [
+    {
+      "id": "abc123",
+      "from": "noreply@service.com",
+      "subject": "Welcome to Service",
+      "receivedAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 50
+  }
+}`}
+                  </CodeBlock>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-semibold mb-3">3. Read Email</h3>
+                  <CodeBlock language="bash">
+{`curl https://yourdomain.com/api/inbox/view/abc123 \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}
+                  </CodeBlock>
+                  <p className="text-sm text-muted-foreground mt-2 mb-2">Response:</p>
+                  <CodeBlock language="json">
+{`{
+  "id": "abc123",
+  "from": "noreply@service.com",
+  "subject": "Your verification code",
+  "text": "Your code is: 123456",
+  "otpCode": "123456",
+  "receivedAt": "2024-01-15T10:30:00Z"
+}`}
+                  </CodeBlock>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card id="authentication">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold tracking-tight">Authentication</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Semua endpoint publik menggunakan <strong>API Key</strong> yang dikirim melalui header <code className="px-1.5 py-0.5 rounded bg-muted text-xs">Authorization</code>:
+                  </p>
+                  <CodeBlock language="bash">
+{`Authorization: Bearer tm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`}
+                  </CodeBlock>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-semibold mb-3">Generate API Key</h3>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                    <li>Login ke dashboard di <code className="px-1.5 py-0.5 rounded bg-muted text-xs">/dashboard</code></li>
+                    <li>Buka <strong>Kunci API</strong> dari sidebar</li>
+                    <li>Klik <strong>Buat Kunci API Baru</strong></li>
+                    <li>
+                      Pilih permission yang dibutuhkan:
+                      <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                        <li><code className="px-1.5 py-0.5 rounded bg-muted text-xs">generate</code> — akses ke <code className="px-1.5 py-0.5 rounded bg-muted text-xs">/api/generate</code> dan <code className="px-1.5 py-0.5 rounded bg-muted text-xs">/api/generate/bulk</code></li>
+                        <li><code className="px-1.5 py-0.5 rounded bg-muted text-xs">inbox</code> — akses ke <code className="px-1.5 py-0.5 rounded bg-muted text-xs">/api/inbox/*</code></li>
+                      </ul>
+                    </li>
+                    <li>Simpan key yang muncul — hanya ditampilkan sekali</li>
+                  </ol>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-semibold mb-3">Rate Limiting</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Setiap API key memiliki rate limit per menit (default 100 request/menit). Header response menunjukkan sisa quota:
+                  </p>
+                  <CodeBlock language="http">
+{`X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 87`}
+                  </CodeBlock>
+                  <p className="text-sm text-muted-foreground mt-3 mb-2">
+                    Jika terlampaui, server mengembalikan <strong>429 Too Many Requests</strong>:
+                  </p>
+                  <CodeBlock language="json">
+{`{
+  "error": "Rate limit terlampaui. Coba lagi nanti."
+}`}
+                  </CodeBlock>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-semibold mb-3">IP Allowlist</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Secara opsional, key dapat dibatasi hanya untuk IP tertentu. Konfigurasi di dashboard saat membuat atau edit key.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold tracking-tight">API Endpoints</h2>
