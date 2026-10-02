@@ -28,6 +28,7 @@ const actionLabels: Record<string, { text: string; variant: "default" | "seconda
   update_domain: { text: "Update Domain", variant: "secondary" },
   delete_domain: { text: "Hapus Domain", variant: "destructive" },
   create_api_key: { text: "Buat API Key", variant: "default" },
+  update_api_key: { text: "Update API Key", variant: "secondary" },
   delete_api_key: { text: "Hapus API Key", variant: "destructive" },
   delete_email: { text: "Hapus Email", variant: "destructive" },
   change_password: { text: "Ganti Password", variant: "outline" },

@@ -13,7 +13,9 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Copy, Loader2, Key, Check } from "lucide-react";
+import { Plus, Trash2, Copy, Loader2, Key, Check, Pencil } from "lucide-react";
+import { parseRateLimit, RATE_LIMIT_ERROR, RATE_LIMIT_MIN, RATE_LIMIT_MAX } from "@/lib/api-keys";
+
 import { useToast } from "@/hooks/use-toast";
 
 interface ApiKey {
@@ -33,6 +35,10 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
   const { toast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [showKey, setShowKey] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string; rateLimit: number } | null>(null);
+  const [editRateLimit, setEditRateLimit] = useState(0);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -100,6 +106,37 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
       router.refresh();
     } catch {
       toast({ title: "Gagal mengubah status", variant: "destructive" });
+    }
+  }
+  function openEdit(key: ApiKey) {
+    setEditing({ id: key.id, name: key.name, rateLimit: key.rateLimit });
+    setEditRateLimit(key.rateLimit);
+  }
+
+  async function handleEditSave() {
+    if (!editing) return;
+    const parsed = parseRateLimit(editRateLimit);
+    if (parsed === null) {
+      toast({ title: "Gagal", description: RATE_LIMIT_ERROR, variant: "destructive" });
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/dashboard/api-keys", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editing.id, rateLimit: parsed }),
+      });
+      const data: { error?: string } = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menyimpan");
+      setEditing(null);
+      toast({ title: `Rate limit diubah ke ${parsed} req/menit` });
+      router.refresh();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal menyimpan";
+      toast({ title: "Gagal", description: message, variant: "destructive" });
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -227,9 +264,14 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(key.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" title="Ubah rate limit" onClick={() => openEdit(key)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Hapus kunci" onClick={() => handleDelete(key.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -238,6 +280,37 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
           </Table>
         </div>
       )}
+      {/* Edit Rate Limit Dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ubah Rate Limit</DialogTitle>
+            <DialogDescription>
+              {editing?.name} — jumlah permintaan maksimum per menit untuk kunci ini.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Rate Limit (req/menit)</Label>
+            <Input
+              type="number"
+              min={RATE_LIMIT_MIN}
+              max={RATE_LIMIT_MAX}
+              value={editRateLimit}
+              onChange={(e) => setEditRateLimit(Number(e.target.value))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Nilai saat ini: {editing?.rateLimit}/mnt. Rentang {RATE_LIMIT_MIN}–{RATE_LIMIT_MAX}.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Batal</Button>
+            <Button onClick={handleEditSave} disabled={savingEdit}>
+              {savingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
