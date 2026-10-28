@@ -3,8 +3,9 @@
 //   node scripts/split-email-bodies.js            # backfill bertahap, aman saat aplikasi jalan
 //   node scripts/split-email-bodies.js --finalize # tulis ulang `emails` tanpa kolom body
 //
-// Backfill memproses per batch dalam transaksi pendek, jadi ingest tetap bisa
-// menulis di sela batch. Bisa dihentikan dan dijalankan ulang kapan saja.
+// Backfill memproses per batch dalam transaksi pendek (dibatasi waktu, bukan jumlah
+// baris), lalu memberi jeda sebanding supaya ingest dan API tidak menunggu kunci
+// tulis melebihi busy_timeout aplikasi. Bisa dihentikan dan dijalankan ulang kapan saja.
 //
 // --finalize membangun ulang tabel `emails` (perlu aplikasi dihentikan) lalu VACUUM
 // supaya ruang body lama dilepas. Jalankan hanya setelah kode v2 (tanpa kolom body)
@@ -13,8 +14,11 @@
 const Database = require("better-sqlite3");
 
 const dbPath = process.env.DATABASE_PATH || "/app/data/cloudmail.db";
-const BATCH = Number(process.env.BATCH || 200);
-const PAUSE_MS = Number(process.env.PAUSE_MS || 50);
+const BATCH_MAX = Number(process.env.BATCH || 200);
+// Satu transaksi tulis tidak boleh lebih lama dari ini (aplikasi menunggu kunci maks 5 dtk).
+const TX_BUDGET_MS = Number(process.env.TX_BUDGET_MS || 300);
+// Jeda minimal antar batch, dan paling tidak sama dengan lama transaksi barusan.
+const PAUSE_MS = Number(process.env.PAUSE_MS || 100);
 
 const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
@@ -48,28 +52,38 @@ function backfill() {
   const clear = db.prepare(
     "UPDATE emails SET text_body = NULL, html_body = NULL, raw_headers = NULL WHERE id = ?"
   );
+  // Salin per baris sampai anggaran waktu habis; sisanya di batch berikutnya.
   const moveBatch = db.transaction((ids) => {
+    const started = Date.now();
+    let n = 0;
     for (const id of ids) {
       copy.run(id);
       clear.run(id);
+      n++;
+      if (Date.now() - started >= TX_BUDGET_MS) break;
     }
+    return n;
   });
 
   let cursor = 0;
   let moved = 0;
   const started = Date.now();
+  let reported = 0;
   for (;;) {
-    const rows = pick.all(cursor, BATCH);
+    const rows = pick.all(cursor, BATCH_MAX);
     if (rows.length === 0) break;
-    moveBatch(rows.map((r) => r.id));
-    moved += rows.length;
-    cursor = rows[rows.length - 1].r;
-    if (moved % (BATCH * 25) < BATCH) {
+    const txStart = Date.now();
+    const n = moveBatch(rows.map((r) => r.id));
+    const txMs = Date.now() - txStart;
+    moved += n;
+    cursor = rows[n - 1].r;
+    if (moved - reported >= 2500) {
+      reported = moved;
       const pct = total ? ((cursor / total) * 100).toFixed(1) : "100";
       const mins = ((Date.now() - started) / 60000).toFixed(1);
       console.log(`${moved} email dipindah, rowid ${cursor}/${total} (${pct}%), ${mins} menit`);
     }
-    sleep(PAUSE_MS);
+    sleep(Math.max(PAUSE_MS, txMs));
   }
   console.log(`Backfill selesai: ${moved} email dipindah.`);
 }
