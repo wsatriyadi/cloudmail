@@ -95,7 +95,7 @@ function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function randomDateOfBirth(): string {
+export function randomDateOfBirth(): string {
   const now = new Date();
   const minAge = 18;
   const maxAge = 65;

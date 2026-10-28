@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, uniqueIndex, check } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // ─── Admin Users ─────────────────────────────────────────────
@@ -178,3 +178,31 @@ export const settings = sqliteTable("settings", {
     .notNull()
     .default(sql`(unixepoch())`),
 });
+
+// ─── Koleksi Nama ────────────────────────────────────────────
+// Duplikat dicegah per gender, tanpa membedakan huruf besar/kecil (ASCII).
+export const namaDepan = sqliteTable(
+  "nama_depan",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gender: text("gender", { enum: ["male", "female"] }).notNull(),
+    namaDepan: text("nama_depan").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_nama_depan_unik").on(table.gender, sql`${table.namaDepan} COLLATE NOCASE`),
+    check("nama_depan_gender_check", sql`${table.gender} IN ('male', 'female')`),
+  ]
+);
+
+export const namaBelakang = sqliteTable(
+  "nama_belakang",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gender: text("gender", { enum: ["male", "female"] }).notNull(),
+    namaBelakang: text("nama_belakang").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_nama_belakang_unik").on(table.gender, sql`${table.namaBelakang} COLLATE NOCASE`),
+    check("nama_belakang_gender_check", sql`${table.gender} IN ('male', 'female')`),
+  ]
+);

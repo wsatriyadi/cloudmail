@@ -1,5 +1,5 @@
 const Database = require('better-sqlite3');
-const db = new Database('/app/data/cloudmail.db');
+const db = new Database(process.env.DATABASE_PATH || '/app/data/cloudmail.db');
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -105,7 +105,19 @@ const statements = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-  )`
+  )`,
+  `CREATE TABLE IF NOT EXISTS nama_depan (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gender TEXT NOT NULL CHECK (gender IN ('male', 'female')),
+    nama_depan TEXT NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_nama_depan_unik ON nama_depan(gender, nama_depan COLLATE NOCASE)`,
+  `CREATE TABLE IF NOT EXISTS nama_belakang (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gender TEXT NOT NULL CHECK (gender IN ('male', 'female')),
+    nama_belakang TEXT NOT NULL
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_nama_belakang_unik ON nama_belakang(gender, nama_belakang COLLATE NOCASE)`
 ];
 
 for (const s of statements) {

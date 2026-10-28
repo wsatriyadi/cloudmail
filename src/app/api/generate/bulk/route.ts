@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
 import { generateIdentity, generateUsername } from "@/lib/llm";
+import { pickIdentityFromCollection } from "@/lib/nama";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
@@ -34,7 +35,8 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < count; i++) {
       try {
-        const identity = await generateIdentity();
+        const fromCollection = pickIdentityFromCollection();
+        const identity = fromCollection ?? (await generateIdentity());
         const username = generateUsername(identity.firstName, identity.lastName);
         const randomDomain = activeDomains[Math.floor(Math.random() * activeDomains.length)];
         const email = `${username}@${randomDomain.domain}`;
@@ -47,6 +49,7 @@ export async function POST(request: Request) {
           dateOfBirth: identity.dateOfBirth,
           email,
           domain: randomDomain.domain,
+          source: fromCollection ? "collection" : "llm",
         });
       } catch (err) {
         // Skip failed generations, continue with others

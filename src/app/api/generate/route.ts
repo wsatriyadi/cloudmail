@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
 import { generateIdentity, generateUsername } from "@/lib/llm";
+import { pickIdentityFromCollection } from "@/lib/nama";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
@@ -31,8 +32,9 @@ export async function POST(request: Request) {
 
     const randomDomain = activeDomains[Math.floor(Math.random() * activeDomains.length)];
 
-    // Generate identity via LLM
-    const identity = await generateIdentity();
+    // Koleksi nama dulu; LLM hanya jika koleksi belum punya pasangan sesama gender
+    const fromCollection = pickIdentityFromCollection();
+    const identity = fromCollection ?? (await generateIdentity());
     const username = generateUsername(identity.firstName, identity.lastName);
     const email = `${username}@${randomDomain.domain}`;
 
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
       dateOfBirth: identity.dateOfBirth,
       email,
       domain: randomDomain.domain,
+      source: fromCollection ? "collection" : "llm",
     });
   } catch (err: any) {
     return NextResponse.json(

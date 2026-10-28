@@ -28,7 +28,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     path: "/api/generate",
     title: "Generate Identity",
     description:
-      "Generate satu identitas palsu lengkap dengan nama, gender, tanggal lahir, dan alamat email di salah satu domain aktif.",
+      "Generate satu identitas palsu lengkap dengan nama, gender, tanggal lahir, dan alamat email di salah satu domain aktif. Nama diambil acak dari koleksi nama (nama belakang selalu sesama gender dengan nama depan); jika koleksi belum punya pasangan sesama gender, nama dibuat oleh LLM. Field `source` bernilai `collection` atau `llm`.",
     auth: "API Key dengan permission `generate`",
     permissions: ["generate"],
     request: {
@@ -44,7 +44,8 @@ export const apiEndpoints: ApiEndpoint[] = [
   "gender": "female",
   "dateOfBirth": "1995-03-17",
   "email": "sarachen42@yourdomain.com",
-  "domain": "yourdomain.com"
+  "domain": "yourdomain.com",
+  "source": "collection"
 }`,
       error: `{
   "error": "Tidak ada domain aktif"
@@ -56,7 +57,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     path: "/api/generate/bulk",
     title: "Bulk Generate",
     description:
-      "Generate hingga 20 identitas sekaligus. Parameter `count` di query string menentukan jumlah.",
+      "Generate hingga 20 identitas sekaligus. Parameter `count` di query string menentukan jumlah. Sumber nama sama seperti Generate Identity (koleksi dulu, LLM cadangan).",
     auth: "API Key dengan permission `generate`",
     permissions: ["generate"],
     request: {
@@ -78,10 +79,41 @@ export const apiEndpoints: ApiEndpoint[] = [
       "gender": "male",
       "dateOfBirth": "1998-11-23",
       "email": "alex.rivera@yourdomain.com",
-      "domain": "yourdomain.com"
+      "domain": "yourdomain.com",
+      "source": "collection"
     }
     // ... 4 more
   ]
+}`,
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/setornama",
+    title: "Setor Koleksi Nama",
+    description:
+      "Tambah nama depan dan/atau nama belakang ke koleksi untuk satu gender. Nama yang sudah ada untuk gender yang sama (tanpa membedakan huruf besar/kecil) dilewati dengan status `duplicate`. Response 201 jika ada nama baru, 200 jika semuanya duplikat.",
+    auth: "API Key dengan permission `generate`",
+    permissions: ["generate"],
+    request: {
+      headers: {
+        Authorization: "Bearer tm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "Content-Type": "application/json",
+      },
+      body: `{
+  "gender": "male",
+  "nama_depan": "Budi",
+  "nama_belakang": "Santoso"
+}`,
+    },
+    response: {
+      success: `{
+  "gender": "male",
+  "nama_depan": { "value": "Budi", "status": "added" },
+  "nama_belakang": { "value": "Santoso", "status": "duplicate" }
+}`,
+      error: `{
+  "error": "gender harus 'male' atau 'female'"
 }`,
     },
   },
@@ -340,7 +372,7 @@ Authorization: Bearer tm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 2. Buka **Kunci API** dari sidebar
 3. Klik **Buat Kunci API Baru**
 4. Pilih permission yang dibutuhkan:
-   - \`generate\` — akses ke \`/api/generate\` dan \`/api/generate/bulk\`
+   - \`generate\` — akses ke \`/api/generate\`, \`/api/generate/bulk\`, dan \`/api/setornama\`
    - \`inbox\` — akses ke \`/api/inbox/*\`
 5. Simpan key yang muncul — hanya ditampilkan sekali
 

@@ -172,7 +172,7 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Switch checked={permGenerate} onCheckedChange={setPermGenerate} />
-                    <span className="text-sm">Generate (POST /api/generate)</span>
+                    <span className="text-sm">Generate (POST /api/generate, /api/setornama)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Switch checked={permInbox} onCheckedChange={setPermInbox} />

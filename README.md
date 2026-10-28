@@ -192,6 +192,27 @@ Content-Type: application/json
 { "count": 5 }
 ```
 
+Nama di `/api/generate` dan `/api/generate/bulk` diambil acak dari koleksi nama: nama depan acak, lalu nama belakang acak dengan gender yang sama. Jika koleksi belum punya pasangan sesama gender, nama dibuat oleh LLM. Field `source` di response bernilai `collection` atau `llm`.
+
+### Setor Koleksi Nama
+
+```bash
+POST /api/setornama
+Authorization: Bearer YOUR_API_KEY   # permission: generate
+Content-Type: application/json
+
+{ "gender": "male", "nama_depan": "Budi", "nama_belakang": "Santoso" }
+
+# Response 201 (ada nama baru) / 200 (semua duplikat)
+{
+  "gender": "male",
+  "nama_depan": { "value": "Budi", "status": "added" },
+  "nama_belakang": { "value": "Santoso", "status": "duplicate" }
+}
+```
+
+`gender` wajib `male` atau `female`; isi minimal salah satu dari `nama_depan` / `nama_belakang`. Duplikat dicek per gender tanpa membedakan huruf besar/kecil. Tabel `nama_depan` dan `nama_belakang` dibuat oleh `scripts/migrate.js`.
+
 ### List Inbox
 
 ```bash
