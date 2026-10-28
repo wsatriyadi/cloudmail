@@ -206,3 +206,27 @@ export const namaBelakang = sqliteTable(
     check("nama_belakang_gender_check", sql`${table.gender} IN ('male', 'female')`),
   ]
 );
+
+// ─── Identitas yang Sudah Diberikan ──────────────────────────
+// Setiap alamat hasil /api/generate dicatat di sini; `address` unik (huruf kecil)
+// supaya satu alamat tidak pernah diberikan ke dua identitas.
+export const identitas = sqliteTable(
+  "identitas",
+  {
+    id: text("id").primaryKey(),
+    address: text("address").notNull().unique(),
+    username: text("username").notNull(),
+    domainId: text("domain_id")
+      .notNull()
+      .references(() => domains.id, { onDelete: "cascade" }),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    gender: text("gender").notNull(),
+    dateOfBirth: text("date_of_birth").notNull(),
+    source: text("source", { enum: ["collection", "llm"] }).notNull(),
+    apiKeyId: text("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  }
+);

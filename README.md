@@ -194,6 +194,8 @@ Content-Type: application/json
 
 Nama di `/api/generate` dan `/api/generate/bulk` diambil acak dari koleksi nama: nama depan acak, lalu nama belakang acak dengan gender yang sama. Jika koleksi belum punya pasangan sesama gender, nama dibuat oleh LLM. Field `source` di response bernilai `collection` atau `llm`.
 
+Alamat email lengkap selalu unik. Alamat yang pernah diberikan, dipakai alias, atau pernah menerima email tidak akan diberikan lagi; jika username dari nama sudah terpakai, dicoba lagi dengan varian berangka (maksimal 10 kali, lalu error 500). Setiap identitas yang diberikan dicatat di tabel `identitas` beserta API key yang memintanya.
+
 ### Setor Koleksi Nama
 
 ```bash
@@ -211,7 +213,7 @@ Content-Type: application/json
 }
 ```
 
-`gender` wajib `male` atau `female`; isi minimal salah satu dari `nama_depan` / `nama_belakang`. Duplikat dicek per gender tanpa membedakan huruf besar/kecil. Tabel `nama_depan` dan `nama_belakang` dibuat oleh `scripts/migrate.js`.
+`gender` wajib `male` atau `female`; isi minimal salah satu dari `nama_depan` / `nama_belakang`. Duplikat dicek per gender tanpa membedakan huruf besar/kecil. Tabel `nama_depan`, `nama_belakang`, dan `identitas` dibuat oleh `scripts/migrate.js`.
 
 ### List Inbox
 

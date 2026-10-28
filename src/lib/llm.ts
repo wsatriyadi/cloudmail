@@ -91,7 +91,7 @@ const NAME_STYLES = [
   "everyday and ordinary",
 ];
 
-function randomChoice<T>(arr: T[]): T {
+export function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
@@ -197,20 +197,4 @@ Use exactly this gender and dateOfBirth in your JSON. Pick a ${style} ${gender} 
         ? parsed.dateOfBirth
         : dateOfBirth,
   };
-}
-
-export function generateUsername(firstName: string, lastName: string): string {
-  const first = firstName.toLowerCase().replace(/[^a-z]/g, "");
-  const last = lastName.toLowerCase().replace(/[^a-z]/g, "");
-  const rand = Math.floor(Math.random() * 900) + 100;
-
-  const strategies = [
-    () => `${first}.${last}`,
-    () => `${first}${last.slice(0, 3)}${Math.floor(Math.random() * 90) + 10}`,
-    () => `${first[0]}${last}${rand}`,
-    () => `${first}_${last}`,
-    () => `${first}${Math.floor(Math.random() * 9000) + 1000}`,
-  ];
-
-  return strategies[Math.floor(Math.random() * strategies.length)]();
 }

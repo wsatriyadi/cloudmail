@@ -28,7 +28,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     path: "/api/generate",
     title: "Generate Identity",
     description:
-      "Generate satu identitas palsu lengkap dengan nama, gender, tanggal lahir, dan alamat email di salah satu domain aktif. Nama diambil acak dari koleksi nama (nama belakang selalu sesama gender dengan nama depan); jika koleksi belum punya pasangan sesama gender, nama dibuat oleh LLM. Field `source` bernilai `collection` atau `llm`.",
+      "Generate satu identitas palsu lengkap dengan nama, gender, tanggal lahir, dan alamat email di salah satu domain aktif. Nama diambil acak dari koleksi nama (nama belakang selalu sesama gender dengan nama depan); jika koleksi belum punya pasangan sesama gender, nama dibuat oleh LLM. Field `source` bernilai `collection` atau `llm`. Alamat email selalu unik: tidak pernah diberikan sebelumnya, tidak dipakai alias, dan belum pernah menerima email.",
     auth: "API Key dengan permission `generate`",
     permissions: ["generate"],
     request: {
@@ -48,7 +48,7 @@ export const apiEndpoints: ApiEndpoint[] = [
   "source": "collection"
 }`,
       error: `{
-  "error": "Tidak ada domain aktif"
+  "error": "Gagal mendapatkan alamat email unik. Coba lagi."
 }`,
     },
   },

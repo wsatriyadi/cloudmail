@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Toaster } from "@/components/ui/toaster";
 
+// Semua halaman dashboard butuh sesi login dan query DB, jadi selalu dinamis.
+// Tanpa ini `next build` mencoba prerender dan menjalankan query statistik
+// terhadap tabel emails (GB-an) sebelum akhirnya menyerah.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
-import { generateIdentity, generateUsername } from "@/lib/llm";
-import { pickIdentityFromCollection } from "@/lib/nama";
+import { createIdentity } from "@/lib/identitas";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
@@ -19,7 +18,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Get random active domain
     const activeDomains = db
       .select({ id: domains.id, domain: domains.domain })
       .from(domains)
@@ -30,27 +28,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Tidak ada domain aktif" }, { status: 503 });
     }
 
-    const randomDomain = activeDomains[Math.floor(Math.random() * activeDomains.length)];
-
-    // Koleksi nama dulu; LLM hanya jika koleksi belum punya pasangan sesama gender
-    const fromCollection = pickIdentityFromCollection();
-    const identity = fromCollection ?? (await generateIdentity());
-    const username = generateUsername(identity.firstName, identity.lastName);
-    const email = `${username}@${randomDomain.domain}`;
-
-    return NextResponse.json({
-      firstName: identity.firstName,
-      lastName: identity.lastName,
-      username,
-      gender: identity.gender,
-      dateOfBirth: identity.dateOfBirth,
-      email,
-      domain: randomDomain.domain,
-      source: fromCollection ? "collection" : "llm",
-    });
-  } catch (err: any) {
+    return NextResponse.json(await createIdentity(activeDomains, authResult.apiKey!.id));
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Gagal generate identitas" },
+      { error: err instanceof Error ? err.message : "Gagal generate identitas" },
       { status: 500 }
     );
   }

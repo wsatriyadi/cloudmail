@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
-import { generateIdentity, generateUsername } from "@/lib/llm";
-import { pickIdentityFromCollection } from "@/lib/nama";
+import { createIdentity } from "@/lib/identitas";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
@@ -35,22 +34,7 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < count; i++) {
       try {
-        const fromCollection = pickIdentityFromCollection();
-        const identity = fromCollection ?? (await generateIdentity());
-        const username = generateUsername(identity.firstName, identity.lastName);
-        const randomDomain = activeDomains[Math.floor(Math.random() * activeDomains.length)];
-        const email = `${username}@${randomDomain.domain}`;
-
-        identities.push({
-          firstName: identity.firstName,
-          lastName: identity.lastName,
-          username,
-          gender: identity.gender,
-          dateOfBirth: identity.dateOfBirth,
-          email,
-          domain: randomDomain.domain,
-          source: fromCollection ? "collection" : "llm",
-        });
+        identities.push(await createIdentity(activeDomains, authResult.apiKey!.id));
       } catch (err) {
         // Skip failed generations, continue with others
         console.error(`Generate ${i + 1} failed:`, err);
@@ -61,9 +45,9 @@ export async function POST(request: Request) {
       count: identities.length,
       identities,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Gagal generate identitas" },
+      { error: err instanceof Error ? err.message : "Gagal generate identitas" },
       { status: 500 }
     );
   }

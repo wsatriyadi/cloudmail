@@ -117,7 +117,20 @@ const statements = [
     gender TEXT NOT NULL CHECK (gender IN ('male', 'female')),
     nama_belakang TEXT NOT NULL
   )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS idx_nama_belakang_unik ON nama_belakang(gender, nama_belakang COLLATE NOCASE)`
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_nama_belakang_unik ON nama_belakang(gender, nama_belakang COLLATE NOCASE)`,
+  `CREATE TABLE IF NOT EXISTS identitas (
+    id TEXT PRIMARY KEY,
+    address TEXT NOT NULL UNIQUE,
+    username TEXT NOT NULL,
+    domain_id TEXT NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    gender TEXT NOT NULL,
+    date_of_birth TEXT NOT NULL,
+    source TEXT NOT NULL,
+    api_key_id TEXT REFERENCES api_keys(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
+  )`
 ];
 
 for (const s of statements) {
