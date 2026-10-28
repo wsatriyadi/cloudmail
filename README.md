@@ -293,6 +293,34 @@ npm run db:studio      # Open Drizzle Studio GUI
 npm run seed           # Seed admin user + defaults
 ```
 
+### Schema Migrations (existing databases)
+
+`scripts/migrate.js` creates missing tables and indexes (`CREATE ... IF NOT EXISTS`) and is safe to rerun:
+
+```bash
+DATABASE_PATH=./data/cloudmail.db node scripts/migrate.js
+```
+
+#### Moving email bodies to `email_bodies`
+
+Email bodies (`text_body`, `html_body`, `raw_headers`) live in the `email_bodies` table so list queries on `emails` never read large bodies. Databases created before this change still hold bodies in `emails` and must be migrated in two steps:
+
+1. **Backfill** — can run while the app is serving traffic. Each write transaction is capped at `TX_BUDGET_MS` (default 300 ms) so ingest and API requests are not blocked. Stop and rerun any time; it resumes where it left off.
+
+   ```bash
+   DATABASE_PATH=./data/cloudmail.db node scripts/split-email-bodies.js
+   ```
+
+2. **Finalize** — stop the app first. Rebuilds `emails` without the body columns, adds `idx_emails_is_read`, then `VACUUM`s to reclaim space. Refuses to run while any email still has a body in `emails`. `VACUUM` needs free disk space roughly equal to the new database size.
+
+   ```bash
+   pm2 stop cloudmail
+   DATABASE_PATH=./data/cloudmail.db node scripts/split-email-bodies.js --finalize
+   npm run build && pm2 start cloudmail
+   ```
+
+The app code expects the finalized schema; deploy it together with step 2.
+
 ## Deployment
 
 ### With Docker (Recommended)

@@ -41,8 +41,6 @@ export const emails = sqliteTable(
     fromName: text("from_name"),
     toAddress: text("to_address").notNull(),
     subject: text("subject").notNull().default("(tanpa subjek)"),
-    textBody: text("text_body"),
-    htmlBody: text("html_body"),
     preview: text("preview"),
     domainId: text("domain_id")
       .notNull()
@@ -50,7 +48,6 @@ export const emails = sqliteTable(
     isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
     label: text("label"), // auto-label: otp, verification, newsletter, notification
     otpCode: text("otp_code"), // extracted OTP/verification code
-    rawHeaders: text("raw_headers"),
     receivedAt: integer("received_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -64,6 +61,7 @@ export const emails = sqliteTable(
     index("idx_emails_received_at").on(table.receivedAt),
     index("idx_emails_from_address").on(table.fromAddress),
     index("idx_emails_message_id").on(table.messageId),
+    index("idx_emails_is_read").on(table.isRead),
   ]
 );
 
