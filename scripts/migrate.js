@@ -29,14 +29,11 @@ const statements = [
     from_name TEXT,
     to_address TEXT NOT NULL,
     subject TEXT NOT NULL DEFAULT '(tanpa subjek)',
-    text_body TEXT,
-    html_body TEXT,
     preview TEXT,
     domain_id TEXT NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
     is_read INTEGER NOT NULL DEFAULT 0,
     label TEXT,
     otp_code TEXT,
-    raw_headers TEXT,
     received_at INTEGER NOT NULL DEFAULT (unixepoch()),
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   )`,
@@ -45,6 +42,7 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS idx_emails_received_at ON emails(received_at)`,
   `CREATE INDEX IF NOT EXISTS idx_emails_from_address ON emails(from_address)`,
   `CREATE INDEX IF NOT EXISTS idx_emails_message_id ON emails(message_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_emails_is_read ON emails(is_read)`,
   `CREATE TABLE IF NOT EXISTS email_bodies (
     email_id TEXT PRIMARY KEY REFERENCES emails(id) ON DELETE CASCADE,
     text_body TEXT,
