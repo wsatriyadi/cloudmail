@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { emails, attachments, domains, settings, aliases } from "@/lib/db/schema";
+import { emails, emailBodies, attachments, domains, settings, aliases } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { verifyWorkerSignature } from "@/lib/worker-auth";
@@ -46,24 +46,31 @@ export async function POST(request: Request) {
     const otpCode = extractOTP(payload.textBody);
     const label = categorizeEmail(payload.subject || "", payload.textBody);
 
-    db.insert(emails)
-      .values({
-        id: emailId,
-        messageId: payload.messageId || null,
-        fromAddress: payload.from,
-        fromName: payload.fromName || null,
-        toAddress: payload.to,
-        subject: payload.subject || "(tanpa subjek)",
-        textBody: payload.textBody || null,
-        htmlBody: payload.htmlBody || null,
-        preview: payload.preview || null,
-        domainId: domain.id,
-        label,
-        otpCode,
-        rawHeaders: payload.headers ? JSON.stringify(payload.headers) : null,
-        receivedAt: payload.receivedAt ? new Date(payload.receivedAt) : new Date(),
-      })
-      .run();
+    db.transaction((tx) => {
+      tx.insert(emails)
+        .values({
+          id: emailId,
+          messageId: payload.messageId || null,
+          fromAddress: payload.from,
+          fromName: payload.fromName || null,
+          toAddress: payload.to,
+          subject: payload.subject || "(tanpa subjek)",
+          preview: payload.preview || null,
+          domainId: domain.id,
+          label,
+          otpCode,
+          receivedAt: payload.receivedAt ? new Date(payload.receivedAt) : new Date(),
+        })
+        .run();
+      tx.insert(emailBodies)
+        .values({
+          emailId,
+          textBody: payload.textBody || null,
+          htmlBody: payload.htmlBody || null,
+          rawHeaders: payload.headers ? JSON.stringify(payload.headers) : null,
+        })
+        .run();
+    });
 
     if (payload.attachments && Array.isArray(payload.attachments)) {
       for (const att of payload.attachments) {

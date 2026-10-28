@@ -37,7 +37,11 @@ export async function POST(request: Request) {
 
     let replyContext = null;
     if (parsed.emailId) {
-      const originalEmail = db.select().from(emails).where(eq(emails.id, parsed.emailId)).get();
+      const originalEmail = db
+        .select({ fromAddress: emails.fromAddress, subject: emails.subject, receivedAt: emails.receivedAt })
+        .from(emails)
+        .where(eq(emails.id, parsed.emailId))
+        .get();
       if (originalEmail) {
         replyContext = {
           originalFrom: originalEmail.fromAddress,

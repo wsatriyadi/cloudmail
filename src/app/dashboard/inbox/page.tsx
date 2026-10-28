@@ -41,7 +41,7 @@ export default async function InboxPage({
       domainId: emails.domainId,
       label: emails.label,
       otpCode: emails.otpCode,
-      hasAttachments: sql<boolean>`EXISTS(SELECT 1 FROM attachments WHERE attachments.email_id = ${emails.id})`,
+      hasAttachments: sql<boolean>`EXISTS(SELECT 1 FROM attachments WHERE attachments.email_id = emails.id)`,
     })
     .from(emails)
     .orderBy(desc(emails.receivedAt))

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { emails, attachments } from "@/lib/db/schema";
+import { getEmailWithBody } from "@/lib/email-body";
 import { eq } from "drizzle-orm";
 
 export async function GET(
@@ -20,7 +21,7 @@ export async function GET(
 
   const { id } = await params;
 
-  const email = db.select().from(emails).where(eq(emails.id, id)).get();
+  const email = getEmailWithBody(id);
 
   if (!email) {
     return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 });

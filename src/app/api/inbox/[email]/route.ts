@@ -37,7 +37,7 @@ export async function GET(
       isRead: emails.isRead,
       label: emails.label,
       otpCode: emails.otpCode,
-      hasAttachments: sql<boolean>`EXISTS(SELECT 1 FROM attachments WHERE attachments.email_id = ${emails.id})`,
+      hasAttachments: sql<boolean>`EXISTS(SELECT 1 FROM attachments WHERE attachments.email_id = emails.id)`,
     })
     .from(emails)
     .where(eq(emails.toAddress, emailAddress))

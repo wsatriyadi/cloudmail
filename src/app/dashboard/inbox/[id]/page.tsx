@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { emails, attachments } from "@/lib/db/schema";
+import { getEmailWithBody } from "@/lib/email-body";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { EmailViewer } from "@/components/inbox/email-viewer";
@@ -11,7 +12,7 @@ export default async function EmailDetailPage({
 }) {
   const { id } = await params;
 
-  const email = db.select().from(emails).where(eq(emails.id, id)).get();
+  const email = getEmailWithBody(id);
 
   if (!email) notFound();
 

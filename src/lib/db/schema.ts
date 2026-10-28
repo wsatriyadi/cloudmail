@@ -63,8 +63,22 @@ export const emails = sqliteTable(
     index("idx_emails_domain_id").on(table.domainId),
     index("idx_emails_received_at").on(table.receivedAt),
     index("idx_emails_from_address").on(table.fromAddress),
+    index("idx_emails_message_id").on(table.messageId),
   ]
 );
+
+// ─── Email Bodies ────────────────────────────────────────────
+// Body besar (rata-rata ~36 KB) disimpan terpisah supaya baris `emails` tetap
+// kecil. Kolom di belakang body pada baris yang sama memaksa SQLite menelusuri
+// rantai overflow page body di setiap query daftar.
+export const emailBodies = sqliteTable("email_bodies", {
+  emailId: text("email_id")
+    .primaryKey()
+    .references(() => emails.id, { onDelete: "cascade" }),
+  textBody: text("text_body"),
+  htmlBody: text("html_body"),
+  rawHeaders: text("raw_headers"),
+});
 
 // ─── Email Attachments ───────────────────────────────────────
 export const attachments = sqliteTable(
