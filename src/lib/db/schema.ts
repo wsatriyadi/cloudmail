@@ -62,6 +62,17 @@ export const emails = sqliteTable(
     index("idx_emails_from_address").on(table.fromAddress),
     index("idx_emails_message_id").on(table.messageId),
     index("idx_emails_is_read").on(table.isRead),
+    // Daftar inbox per alamat: semua kolom yang dibaca ikut di index, jadi tidak
+    // perlu menyentuh baris tabel maupun body.
+    index("idx_emails_inbox_cover").on(
+      table.toAddress,
+      sql`${table.receivedAt} DESC`,
+      table.isRead,
+      table.label,
+      table.otpCode,
+      table.preview,
+      table.id
+    ),
   ]
 );
 

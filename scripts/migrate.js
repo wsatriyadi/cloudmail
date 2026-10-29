@@ -43,6 +43,7 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS idx_emails_from_address ON emails(from_address)`,
   `CREATE INDEX IF NOT EXISTS idx_emails_message_id ON emails(message_id)`,
   `CREATE INDEX IF NOT EXISTS idx_emails_is_read ON emails(is_read)`,
+  `CREATE INDEX IF NOT EXISTS idx_emails_inbox_cover ON emails(to_address, received_at DESC, is_read, label, otp_code, preview, id)`,
   `CREATE TABLE IF NOT EXISTS email_bodies (
     email_id TEXT PRIMARY KEY REFERENCES emails(id) ON DELETE CASCADE,
     text_body TEXT,
