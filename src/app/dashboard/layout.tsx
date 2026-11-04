@@ -26,7 +26,7 @@ export default async function DashboardLayout({
       >
         Lompat ke konten utama
       </a>
-      <AppSidebar />
+      <AppSidebar role={session.user?.role} />
       <main
         id="konten-utama"
         className="flex-1 bg-background lg:h-screen lg:overflow-y-auto"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import {
   BarChart3,
   BookOpen,
@@ -152,9 +152,7 @@ function SidebarBody({ onNavigate, role }: { onNavigate?: () => void; role?: str
   );
 }
 
-export function AppSidebar() {
-  const { data: session } = useSession();
-  const role = session?.user?.role;
+export function AppSidebar({ role }: { role?: string }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
