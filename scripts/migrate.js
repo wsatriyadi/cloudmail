@@ -9,7 +9,7 @@ const statements = [
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'admin',
+    role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin','pelanggan','viewer','api-only')),
     created_at INTEGER NOT NULL DEFAULT (unixepoch()),
     updated_at INTEGER NOT NULL DEFAULT (unixepoch())
   )`,
@@ -90,6 +90,7 @@ const statements = [
     expires_at INTEGER,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_by_id TEXT REFERENCES users(id),
+    api_key_id TEXT REFERENCES api_keys(id) ON DELETE CASCADE,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   )`,
   `CREATE INDEX IF NOT EXISTS idx_aliases_address ON aliases(address)`,
@@ -135,12 +136,25 @@ const statements = [
     date_of_birth TEXT NOT NULL,
     source TEXT NOT NULL,
     api_key_id TEXT REFERENCES api_keys(id) ON DELETE SET NULL,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
-  )`
+  )`,
 ];
+
+// Kolom kepemilikan ditambahkan dulu; index yang memakainya baru dibuat setelahnya.
+function ensureColumn(table, name, declaration) {
+  const found = db.prepare(`PRAGMA table_info(${table})`).all().some((column) => column.name === name);
+  if (!found) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${declaration}`);
+}
 
 for (const s of statements) {
   db.exec(s);
 }
-console.log('All tables created successfully');
+
+ensureColumn('aliases', 'api_key_id', 'TEXT REFERENCES api_keys(id) ON DELETE CASCADE');
+ensureColumn('identitas', 'user_id', 'TEXT REFERENCES users(id) ON DELETE SET NULL');
+db.exec('CREATE INDEX IF NOT EXISTS idx_aliases_created_by ON aliases(created_by_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_aliases_api_key ON aliases(api_key_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_identitas_user ON identitas(user_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_identitas_api_key ON identitas(api_key_id)');
 db.close();

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   BarChart3,
   BookOpen,
@@ -17,11 +17,20 @@ import {
   Menu,
   ScrollText,
   Users,
+  UserPlus,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+
+// Menu ditampilkan sesuai role. Pelanggan tidak melihat Domain, Pengguna, dan
+// Log Aktivitas (pengaturan milik sendiri tetap ada).
+const ADMIN_ONLY: Record<string, true> = {
+  "/dashboard/domains": true,
+  "/dashboard/users": true,
+  "/dashboard/audit-log": true,
+};
 
 const navGroups = [
   {
@@ -34,6 +43,7 @@ const navGroups = [
       { href: "/dashboard/inbox", label: "Kotak Masuk", icon: Inbox },
       { href: "/dashboard/domains", label: "Domain", icon: Globe },
       { href: "/dashboard/aliases", label: "Alias Email", icon: AtSign },
+      { href: "/dashboard/generate", label: "Generate Identitas", icon: UserPlus },
     ],
   },
   {
@@ -52,13 +62,21 @@ const navGroups = [
   },
 ];
 
+function visibleGroups(role: string | undefined) {
+  if (role === "admin") return navGroups;
+  return navGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !ADMIN_ONLY[item.href]) }))
+    .filter((group) => group.items.length > 0);
+}
+
 function isItemActive(pathname: string, href: string) {
   return href === "/dashboard"
     ? pathname === "/dashboard"
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarBody({ onNavigate, role }: { onNavigate?: () => void; role?: string }) {
+  const groups = visibleGroups(role);
   const pathname = usePathname();
 
   return (
@@ -135,6 +153,8 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AppSidebar() {
+  const { data: session } = useSession();
+  const role = session?.user?.role;
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -198,13 +218,13 @@ export function AppSidebar() {
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <SidebarBody onNavigate={() => setMobileOpen(false)} />
+            <SidebarBody onNavigate={() => setMobileOpen(false)} role={role} />
           </div>
         </div>
       )}
 
       <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar-background lg:flex">
-        <SidebarBody />
+        <SidebarBody role={role} />
       </aside>
     </>
   );

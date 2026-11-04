@@ -28,6 +28,7 @@ interface User {
 
 const roleLabels: Record<string, string> = {
   admin: "Admin",
+  pelanggan: "Pelanggan",
   viewer: "Viewer",
   "api-only": "API Only",
 };
@@ -136,6 +137,7 @@ export function UserTable({ users }: { users: User[] }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin — Akses penuh</SelectItem>
+                    <SelectItem value="pelanggan">Pelanggan — API key + alias milik sendiri</SelectItem>
                     <SelectItem value="viewer">Viewer — Hanya lihat</SelectItem>
                     <SelectItem value="api-only">API Only — Hanya API</SelectItem>
                   </SelectContent>

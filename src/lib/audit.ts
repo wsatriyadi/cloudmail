@@ -9,6 +9,7 @@ export type AuditAction =
   | "delete_domain"
   | "create_api_key"
   | "update_api_key"
+  | "generate_identity"
   | "delete_api_key"
   | "delete_email"
   | "change_password"

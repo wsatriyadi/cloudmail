@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
 import { createIdentity } from "@/lib/identitas";
 import { db } from "@/lib/db";
-import { domains } from "@/lib/db/schema";
+import { domains, apiKeys } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 export async function POST(request: Request) {
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Tidak ada domain aktif" }, { status: 503 });
     }
 
-    return NextResponse.json(await createIdentity(activeDomains, authResult.apiKey!.id));
+    const creator = db.select({ createdById: apiKeys.createdById }).from(apiKeys).where(eq(apiKeys.id, authResult.apiKey!.id)).get();
+    return NextResponse.json(await createIdentity(activeDomains, authResult.apiKey!.id, creator?.createdById ?? null));
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Gagal generate identitas" },

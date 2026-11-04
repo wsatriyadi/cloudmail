@@ -3,12 +3,16 @@ import { db } from "@/lib/db";
 import { settings, users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth/config";
+import { sessionUser } from "@/lib/authz";
 import { compareSync, hashSync } from "bcryptjs";
 import { sql } from "drizzle-orm";
 
 // Save settings (single or bulk)
 export async function POST(request: Request) {
   try {
+    const session = await sessionUser();
+    if (!session) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+    if (session.role !== "admin") return NextResponse.json({ error: "Akses admin diperlukan" }, { status: 403 });
     const body = await request.json();
 
     if (body.bulk) {

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { requireUser } from "@/lib/authz";
 
 function getSettings() {
   const rows = db.select().from(settings).all();
@@ -11,7 +12,8 @@ function getSettings() {
   return map;
 }
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const user = await requireUser();
   const settingsMap = getSettings();
 
   return (
@@ -19,10 +21,10 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Pengaturan</h1>
         <p className="text-muted-foreground">
-          Konfigurasi platform dan preferensi.
+          {user.role === "admin" ? "Konfigurasi platform dan preferensi." : "Ubah password akun Anda."}
         </p>
       </div>
-      <SettingsForm settings={settingsMap} />
+      <SettingsForm settings={settingsMap} isAdmin={user.role === "admin"} />
     </div>
   );
 }

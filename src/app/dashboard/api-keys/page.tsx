@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import { requireUser } from "@/lib/authz";
 import { ApiKeyTable } from "@/components/api-keys/api-key-table";
 
-function getApiKeys() {
+function getApiKeys(createdById: string | null) {
   return db
     .select({
       id: apiKeys.id,
@@ -17,12 +18,16 @@ function getApiKeys() {
       createdAt: apiKeys.createdAt,
     })
     .from(apiKeys)
+    .where(createdById ? eq(apiKeys.createdById, createdById) : undefined)
     .orderBy(desc(apiKeys.createdAt))
     .all();
 }
 
-export default function ApiKeysPage() {
-  const keys = getApiKeys();
+export default async function ApiKeysPage() {
+  const user = await requireUser();
+  // Pelanggan/viewer hanya melihat API key miliknya sendiri; admin melihat semua.
+  const ownerId = user.role === "admin" ? null : user.id;
+  const keys = getApiKeys(ownerId);
 
   return (
     <div className="space-y-6">

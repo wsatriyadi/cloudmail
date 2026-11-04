@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
 import { aliases, domains } from "@/lib/db/schema";
-import { desc, sql } from "drizzle-orm";
+import { desc, sql, eq } from "drizzle-orm";
+import { requireUser } from "@/lib/authz";
 import { AliasTable } from "@/components/aliases/alias-table";
 
-function getAliases() {
+function getAliases(userId: string | null) {
   return db
     .select({
       id: aliases.id,
@@ -17,6 +18,7 @@ function getAliases() {
       emailCount: sql<number>`(SELECT COUNT(*) FROM emails WHERE emails.to_address = ${aliases.address})`,
     })
     .from(aliases)
+    .where(userId ? eq(aliases.createdById, userId) : undefined)
     .orderBy(desc(aliases.createdAt))
     .all();
 }
@@ -28,8 +30,10 @@ function getDomains() {
     .all();
 }
 
-export default function AliasesPage() {
-  const aliasList = getAliases();
+export default async function AliasesPage() {
+  const user = await requireUser();
+  const ownerId = user.role === "admin" ? null : user.id;
+  const aliasList = getAliases(ownerId);
   const domainList = getDomains();
 
   return (

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
 import { createIdentity } from "@/lib/identitas";
+import { apiKeys } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
@@ -29,12 +31,13 @@ export async function POST(request: Request) {
     if (activeDomains.length === 0) {
       return NextResponse.json({ error: "Tidak ada domain aktif" }, { status: 503 });
     }
+    const owner = db.select({ createdById: apiKeys.createdById }).from(apiKeys).where(eq(apiKeys.id, authResult.apiKey!.id)).get();
 
     const identities = [];
 
     for (let i = 0; i < count; i++) {
       try {
-        identities.push(await createIdentity(activeDomains, authResult.apiKey!.id));
+        identities.push(await createIdentity(activeDomains, authResult.apiKey!.id, owner?.createdById ?? null));
       } catch (err) {
         // Skip failed generations, continue with others
         console.error(`Generate ${i + 1} failed:`, err);

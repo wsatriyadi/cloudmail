@@ -3,6 +3,7 @@ import { authenticateApiRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { emails, attachments } from "@/lib/db/schema";
 import { getEmailWithBody } from "@/lib/email-body";
+import { addressesOwnedByApiKey } from "@/lib/address-access";
 import { eq } from "drizzle-orm";
 
 export async function GET(
@@ -22,8 +23,9 @@ export async function GET(
   const { id } = await params;
 
   const email = getEmailWithBody(id);
-
-  if (!email) {
+  if (!email) return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 });
+  const owned = await addressesOwnedByApiKey(authResult.apiKey!.id);
+  if (owned && !owned.includes(email.toAddress.toLowerCase())) {
     return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 });
   }
 

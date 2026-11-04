@@ -3,6 +3,7 @@ import { authenticateApiRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { emails } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import { addressesOwnedByApiKey } from "@/lib/address-access";
 
 export async function GET(
   request: Request,
@@ -19,12 +20,17 @@ export async function GET(
   }
 
   const { email } = await params;
-  const emailAddress = decodeURIComponent(email);
 
   const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get("page") || "1");
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10) || 50));
   const offset = (page - 1) * limit;
+  const emailAddress = decodeURIComponent(email).toLowerCase();
+
+  const owned = await addressesOwnedByApiKey(authResult.apiKey!.id);
+  if (owned && !owned.includes(emailAddress)) {
+    return NextResponse.json({ error: "Alamat tidak ditemukan" }, { status: 404 });
+  }
 
   const results = db
     .select({

@@ -7,7 +7,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
-  role: text("role").notNull().default("admin"), // admin, viewer, api-only
+  role: text("role").notNull().default("admin"), // admin, pelanggan, viewer, api-only
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -161,6 +161,8 @@ export const aliases = sqliteTable(
     expiresAt: integer("expires_at", { mode: "timestamp" }), // null = never
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     createdById: text("created_by_id").references(() => users.id),
+    // Diisi bila alias dibuat lewat API key (pelanggan). Pemilik alias.
+    apiKeyId: text("api_key_id").references(() => apiKeys.id, { onDelete: "cascade" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
@@ -169,6 +171,8 @@ export const aliases = sqliteTable(
     index("idx_aliases_address").on(table.address),
     index("idx_aliases_domain_id").on(table.domainId),
     index("idx_aliases_expires_at").on(table.expiresAt),
+    index("idx_aliases_created_by").on(table.createdById),
+    index("idx_aliases_api_key").on(table.apiKeyId),
   ]
 );
 
@@ -248,8 +252,13 @@ export const identitas = sqliteTable(
     dateOfBirth: text("date_of_birth").notNull(),
     source: text("source", { enum: ["collection", "llm"] }).notNull(),
     apiKeyId: text("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),
-  }
+  },
+  (table) => [
+    index("idx_identitas_user").on(table.userId),
+    index("idx_identitas_api_key").on(table.apiKeyId),
+  ]
 );

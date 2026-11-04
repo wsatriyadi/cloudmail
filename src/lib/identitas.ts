@@ -62,7 +62,7 @@ function isAddressTaken(address: string): boolean {
   return received !== undefined;
 }
 
-export async function createIdentity(activeDomains: ActiveDomain[], apiKeyId: string) {
+export async function createIdentity(activeDomains: ActiveDomain[], apiKeyId: string | null, userId: string | null = null) {
   const fromCollection = pickIdentityFromCollection();
   const person = fromCollection ?? (await generateIdentity());
   const source = fromCollection ? "collection" : "llm";
@@ -90,6 +90,7 @@ export async function createIdentity(activeDomains: ActiveDomain[], apiKeyId: st
               dateOfBirth: person.dateOfBirth,
               source,
               apiKeyId,
+              userId,
             })
             .onConflictDoNothing()
             .run().changes > 0

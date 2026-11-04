@@ -4,6 +4,7 @@ import { compareSync } from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { normaliseRole } from "@/lib/authz";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -35,6 +36,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user.id,
           email: user.email,
           name: user.name,
+          // Role ikut di token supaya otorisasi tidak perlu query ulang.
+          role: normaliseRole(user.role),
         };
       },
     }),
@@ -49,12 +52,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.role = normaliseRole(typeof token.role === "string" ? token.role : null);
       }
       return session;
     },

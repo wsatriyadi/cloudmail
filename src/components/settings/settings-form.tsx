@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Eye, EyeOff, Copy, Check, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export function SettingsForm({ settings }: { settings: Record<string, string> }) {
+export function SettingsForm({ settings, isAdmin }: { settings: Record<string, string>; isAdmin: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -148,28 +148,11 @@ export function SettingsForm({ settings }: { settings: Record<string, string> })
 
   return (
     <div className="space-y-6">
-      {/* Platform Name */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Platform</CardTitle>
-          <CardDescription>Nama platform yang ditampilkan di header dan halaman login.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <Input value={platformName} onChange={(e) => setPlatformName(e.target.value)} className="max-w-sm" />
-            <Button onClick={() => saveSettings("platform_name", platformName, setSavingPlatform)} disabled={savingPlatform}>
-              {savingPlatform && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Simpan
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Change Password */}
+      {/* Change Password — tersedia untuk semua role */}
       <Card>
         <CardHeader>
           <CardTitle>Ganti Password</CardTitle>
-          <CardDescription>Ubah password akun admin Anda.</CardDescription>
+          <CardDescription>Ubah password akun Anda.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="max-w-sm space-y-4">
@@ -193,6 +176,9 @@ export function SettingsForm({ settings }: { settings: Record<string, string> })
         </CardContent>
       </Card>
 
+      {/* Konfigurasi platform hanya untuk admin */}
+      {isAdmin && (
+        <>
       {/* LLM Configuration */}
       <Card>
         <CardHeader>
@@ -301,6 +287,8 @@ export function SettingsForm({ settings }: { settings: Record<string, string> })
           </div>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }
