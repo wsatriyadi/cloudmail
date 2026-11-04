@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { auditLogs, users } from "@/lib/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
 import { AuditLogTable } from "@/components/audit/audit-log-table";
+import { requireAdmin } from "@/lib/authz";
 
 function getAuditLogs() {
   return db
@@ -20,7 +21,8 @@ function getAuditLogs() {
     .all();
 }
 
-export default function AuditLogPage() {
+export default async function AuditLogPage() {
+  await requireAdmin();
   const logs = getAuditLogs();
 
   return (

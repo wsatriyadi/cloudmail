@@ -3,6 +3,7 @@ import { users } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { UserTable } from "@/components/users/user-table";
 
+import { requireAdmin } from "@/lib/authz";
 function getUsers() {
   return db
     .select({
@@ -17,7 +18,8 @@ function getUsers() {
     .all();
 }
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  await requireAdmin();
   const userList = getUsers();
 
   return (

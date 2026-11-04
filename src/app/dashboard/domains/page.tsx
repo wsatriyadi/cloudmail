@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { domains, emails } from "@/lib/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
 import { DomainTable } from "@/components/domains/domain-table";
+import { requireAdmin } from "@/lib/authz";
 
 function getDomains() {
   const allDomains = db
@@ -20,7 +21,8 @@ function getDomains() {
   return allDomains;
 }
 
-export default function DomainsPage() {
+export default async function DomainsPage() {
+  await requireAdmin();
   const domainList = getDomains();
 
   return (
