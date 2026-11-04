@@ -1,5 +1,15 @@
+const fs = require('fs');
+const path = require('path');
+// PM2 memuat .env; shell biasa tidak. Baca .env supaya path DB tetap benar.
+if (!process.env.DATABASE_PATH) {
+  const envFile = path.join(__dirname, '..', '.env');
+  if (fs.existsSync(envFile)) {
+    const match = fs.readFileSync(envFile, 'utf8').match(/^DATABASE_PATH=(.+)$/m);
+    if (match) process.env.DATABASE_PATH = match[1].trim();
+  }
+}
 const Database = require('better-sqlite3');
-const db = new Database(process.env.DATABASE_PATH || '/app/data/cloudmail.db');
+const db = new Database(process.env.DATABASE_PATH || './data/cloudmail.db');
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
