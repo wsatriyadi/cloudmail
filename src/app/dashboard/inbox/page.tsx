@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { emails, domains } from "@/lib/db/schema";
-import { desc, sql, count, inArray } from "drizzle-orm";
-import { emailScopeFor } from "@/lib/address-access";
+import { desc, sql, count } from "drizzle-orm";
+import { emailScopeCondition } from "@/lib/address-access";
 import { requireUser } from "@/lib/authz";
 import { InboxTable } from "@/components/inbox/inbox-table";
 
@@ -16,8 +16,7 @@ export default async function InboxPage({
   const offset = (currentPage - 1) * pageSize;
 
   const user = await requireUser();
-  // null = admin lihat semuanya; array = hanya alamat milik pengguna ini.
-  const scope = await emailScopeFor(user.id, user.role);
+  const scope = emailScopeCondition(user.id, user.role);
 
   const allDomains = db
     .select({ id: domains.id, domain: domains.domain })
@@ -29,7 +28,7 @@ export default async function InboxPage({
   const totalResult = db
     .select({ count: count() })
     .from(emails)
-    .where(scope ? inArray(emails.toAddress, scope) : undefined)
+    .where(scope)
     .get();
   const totalEmails = totalResult?.count ?? 0;
   const totalPages = Math.ceil(totalEmails / pageSize);
@@ -51,7 +50,7 @@ export default async function InboxPage({
       hasAttachments: sql<boolean>`EXISTS(SELECT 1 FROM attachments WHERE attachments.email_id = emails.id)`,
     })
     .from(emails)
-    .where(scope ? inArray(emails.toAddress, scope) : undefined)
+    .where(scope)
     .limit(pageSize)
     .offset(offset)
     .all();
