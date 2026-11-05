@@ -132,9 +132,12 @@ for (const row of rows.iterate()) {
   });
   buffer += fields.join("\t") + "\n";
   if (buffer.length >= 1 << 20) {
-    process.stdout.write(buffer);
+    // Tulis sinkron ke fd 1: backpressure ditangani kernel, bukan buffer Node.
+    // process.stdout.write tanpa drain menumpuk di heap sampai OOM pada tabel
+    // besar seperti email_bodies.
+    fs.writeSync(1, buffer);
     buffer = "";
   }
 }
-if (buffer) process.stdout.write(buffer);
+if (buffer) fs.writeSync(1, buffer);
 db.close();
