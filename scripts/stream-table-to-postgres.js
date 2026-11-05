@@ -8,6 +8,7 @@
 //   node scripts/stream-table-to-postgres.js <table> --columns
 //   node scripts/stream-table-to-postgres.js <table> | psql "$DATABASE_URL" -c "COPY t (cols) FROM STDIN (FORMAT text, NULL '\N')"
 
+const fs = require("fs");
 const Database = require("better-sqlite3");
 
 const SQLITE_PATH = process.env.SQLITE_PATH || "./data/cloudmail.db";
