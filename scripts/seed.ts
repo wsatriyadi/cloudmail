@@ -11,18 +11,17 @@ async function seed() {
   const adminEmail = process.env.ADMIN_EMAIL || "admin@cloudmail.local";
   const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 
-  const existingUser = db.select().from(users).where(eq(users.email, adminEmail)).get();
+  const existingUser = (await db.select().from(users).where(eq(users.email, adminEmail)))[0];
 
   if (!existingUser) {
-    db.insert(users)
+    await db.insert(users)
       .values({
         id: nanoid(),
         email: adminEmail,
         passwordHash: hashSync(adminPassword, 12),
         name: "Admin",
         role: "admin",
-      })
-      .run();
+      });
     console.log(`✅ Admin user dibuat: ${adminEmail}`);
   } else {
     console.log(`⏭️  Admin user sudah ada: ${adminEmail}`);
@@ -42,10 +41,10 @@ async function seed() {
   };
 
   for (const [key, value] of Object.entries(defaultSettings)) {
-    const existing = db.select().from(settings).where(eq(settings.key, key)).get();
+    const existing = (await db.select().from(settings).where(eq(settings.key, key)))[0];
 
     if (!existing) {
-      db.insert(settings).values({ key, value }).run();
+      await db.insert(settings).values({ key, value });
       console.log(`✅ Setting: ${key} = ${key.includes("secret") || key.includes("api_key") ? "***" : value}`);
     }
   }
