@@ -9,20 +9,20 @@ export interface LLMConfig {
   model: string;
 }
 
-function getSetting(key: string): string | undefined {
-  return db.select().from(settings).where(eq(settings.key, key)).get()?.value;
+async function getSetting(key: string): Promise<string | undefined> {
+  return (await db.select().from(settings).where(eq(settings.key, key)))[0]?.value;
 }
 
-export function getLLMConfig(): LLMConfig {
+export async function getLLMConfig(): Promise<LLMConfig> {
   return {
-    endpoint: getSetting("llm_endpoint") || "https://api.openai.com/v1",
-    apiKey: getSetting("llm_api_key") || "",
-    model: getSetting("llm_model") || "gpt-4o-mini",
+    endpoint: (await getSetting("llm_endpoint")) || "https://api.openai.com/v1",
+    apiKey: (await getSetting("llm_api_key")) || "",
+    model: (await getSetting("llm_model")) || "gpt-4o-mini",
   };
 }
 
-export function createLLMClient(config?: LLMConfig): OpenAI {
-  const cfg = config || getLLMConfig();
+export async function createLLMClient(config?: LLMConfig): Promise<OpenAI> {
+  const cfg = config || (await getLLMConfig());
   return new OpenAI({
     baseURL: cfg.endpoint,
     apiKey: cfg.apiKey,
@@ -136,13 +136,13 @@ export async function generateIdentity(): Promise<{
   gender: string;
   dateOfBirth: string;
 }> {
-  const config = getLLMConfig();
+  const config = await getLLMConfig();
 
   if (!config.apiKey) {
     throw new Error("LLM API key belum dikonfigurasi. Atur di Pengaturan.");
   }
 
-  const client = createLLMClient(config);
+  const client = await createLLMClient(config);
 
   const origin = randomChoice(NAME_ORIGINS);
   const gender = randomChoice(["male", "female"]);

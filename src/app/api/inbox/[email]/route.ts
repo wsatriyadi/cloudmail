@@ -32,7 +32,7 @@ export async function GET(
     return NextResponse.json({ error: "Alamat tidak ditemukan" }, { status: 404 });
   }
 
-  const results = db
+  const results = await db
     .select({
       id: emails.id,
       from: emails.fromAddress,
@@ -49,16 +49,14 @@ export async function GET(
     .where(eq(emails.toAddress, emailAddress))
     .orderBy(desc(emails.receivedAt))
     .limit(limit)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
-  const countResult = db
+  const countResult = (await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(emails)
-    .where(eq(emails.toAddress, emailAddress))
-    .get();
+    .where(eq(emails.toAddress, emailAddress)))[0];
 
-  const total = countResult?.count ?? 0;
+  const total = Number(countResult?.count ?? 0);
 
   return NextResponse.json({
     emails: results,

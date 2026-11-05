@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/authz";
 import { ApiKeyTable } from "@/components/api-keys/api-key-table";
 
-function getApiKeys(createdById: string | null) {
+async function getApiKeys(createdById: string | null) {
   return db
     .select({
       id: apiKeys.id,
@@ -20,14 +20,14 @@ function getApiKeys(createdById: string | null) {
     .from(apiKeys)
     .where(createdById ? eq(apiKeys.createdById, createdById) : undefined)
     .orderBy(desc(apiKeys.createdAt))
-    .all();
+    ;
 }
 
 export default async function ApiKeysPage() {
   const user = await requireUser();
   // Pelanggan/viewer hanya melihat API key miliknya sendiri; admin melihat semua.
   const ownerId = user.role === "admin" ? null : user.id;
-  const keys = getApiKeys(ownerId);
+  const keys = await getApiKeys(ownerId);
 
   return (
     <div className="space-y-6">

@@ -22,21 +22,21 @@ export async function POST(request: Request) {
     const payload = JSON.parse(body);
 
     const toDomain = payload.to.split("@")[1];
-    const domain = db.select().from(domains).where(and(eq(domains.domain, toDomain), eq(domains.isActive, true))).get();
+    const domain = (await db.select().from(domains).where(and(eq(domains.domain, toDomain), eq(domains.isActive, true))))[0];
 
     if (!domain) {
       return NextResponse.json({ error: "Domain tidak ditemukan atau nonaktif" }, { status: 404 });
     }
 
     // Check if target address has an expired alias
-    const alias = db.select().from(aliases).where(eq(aliases.address, payload.to)).get();
+    const alias = (await db.select().from(aliases).where(eq(aliases.address, payload.to)))[0];
     if (alias && alias.expiresAt && alias.expiresAt < new Date()) {
       return NextResponse.json({ error: "Alamat sudah kedaluwarsa" }, { status: 410 });
     }
 
     // Deduplicate by messageId
     if (payload.messageId) {
-      const existing = db.select({ id: emails.id }).from(emails).where(eq(emails.messageId, payload.messageId)).get();
+      const existing = (await db.select({ id: emails.id }).from(emails).where(eq(emails.messageId, payload.messageId)))[0];
       if (existing) {
         return NextResponse.json({ status: "duplicate", id: existing.id });
       }
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
     const otpCode = extractOTP(payload.textBody);
     const label = categorizeEmail(payload.subject || "", payload.textBody);
 
-    db.transaction((tx) => {
-      tx.insert(emails)
+    await db.transaction(async (tx) => {
+      await tx.insert(emails)
         .values({
           id: emailId,
           messageId: payload.messageId || null,
@@ -60,16 +60,14 @@ export async function POST(request: Request) {
           label,
           otpCode,
           receivedAt: payload.receivedAt ? new Date(payload.receivedAt) : new Date(),
-        })
-        .run();
-      tx.insert(emailBodies)
+        });
+      await tx.insert(emailBodies)
         .values({
           emailId,
           textBody: payload.textBody || null,
           htmlBody: payload.htmlBody || null,
           rawHeaders: payload.headers ? JSON.stringify(payload.headers) : null,
-        })
-        .run();
+        });
     });
 
     if (payload.attachments && Array.isArray(payload.attachments)) {
@@ -81,14 +79,13 @@ export async function POST(request: Request) {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         await fs.writeFile(fullPath, Buffer.from(att.contentBase64, "base64"));
 
-        db.insert(attachments)
-          .values({ id: attId, emailId, filename: att.filename, mimeType: att.mimeType, size: att.size, storagePath })
-          .run();
+        await db.insert(attachments)
+          .values({ id: attId, emailId, filename: att.filename, mimeType: att.mimeType, size: att.size, storagePath });
       }
     }
 
     // Fire webhook
-    const webhookSetting = db.select().from(settings).where(eq(settings.key, "webhook_url")).get();
+    const webhookSetting = (await db.select().from(settings).where(eq(settings.key, "webhook_url")))[0];
     if (webhookSetting?.value) {
       fetch(webhookSetting.value, {
         method: "POST",

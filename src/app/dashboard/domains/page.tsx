@@ -4,7 +4,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { DomainTable } from "@/components/domains/domain-table";
 import { requireAdmin } from "@/lib/authz";
 
-function getDomains() {
+async function getDomains() {
   const allDomains = db
     .select({
       id: domains.id,
@@ -16,14 +16,14 @@ function getDomains() {
     })
     .from(domains)
     .orderBy(desc(domains.createdAt))
-    .all();
+    ;
 
   return allDomains;
 }
 
 export default async function DomainsPage() {
   await requireAdmin();
-  const domainList = getDomains();
+  const domainList = await getDomains();
 
   return (
     <div className="space-y-6">

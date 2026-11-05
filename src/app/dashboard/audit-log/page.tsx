@@ -4,7 +4,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import { AuditLogTable } from "@/components/audit/audit-log-table";
 import { requireAdmin } from "@/lib/authz";
 
-function getAuditLogs() {
+async function getAuditLogs() {
   return db
     .select({
       id: auditLogs.id,
@@ -18,12 +18,12 @@ function getAuditLogs() {
     .from(auditLogs)
     .orderBy(desc(auditLogs.createdAt))
     .limit(200)
-    .all();
+    ;
 }
 
 export default async function AuditLogPage() {
   await requireAdmin();
-  const logs = getAuditLogs();
+  const logs = await getAuditLogs();
 
   return (
     <div className="space-y-6">

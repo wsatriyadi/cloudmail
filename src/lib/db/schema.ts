@@ -1,38 +1,31 @@
-import { sqliteTable, text, integer, index, uniqueIndex, check } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, boolean, timestamp, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // ─── Admin Users ─────────────────────────────────────────────
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
   role: text("role").notNull().default("admin"), // admin, pelanggan, viewer, api-only
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── Domains ─────────────────────────────────────────────────
-export const domains = sqliteTable("domains", {
+export const domains = pgTable("domains", {
   id: text("id").primaryKey(),
   domain: text("domain").notNull().unique(),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  isActive: boolean("is_active").notNull().default(true),
   cloudflareZoneId: text("cloudflare_zone_id"),
   description: text("description"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── Received Emails ─────────────────────────────────────────
-export const emails = sqliteTable(
+// Body besar disimpan terpisah (email_bodies) agar baris tetap kecil.
+export const emails = pgTable(
   "emails",
   {
     id: text("id").primaryKey(),
@@ -45,15 +38,11 @@ export const emails = sqliteTable(
     domainId: text("domain_id")
       .notNull()
       .references(() => domains.id, { onDelete: "cascade" }),
-    isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
-    label: text("label"), // auto-label: otp, verification, newsletter, notification
-    otpCode: text("otp_code"), // extracted OTP/verification code
-    receivedAt: integer("received_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    isRead: boolean("is_read").notNull().default(false),
+    label: text("label"),
+    otpCode: text("otp_code"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_emails_to_address").on(table.toAddress),
@@ -62,8 +51,6 @@ export const emails = sqliteTable(
     index("idx_emails_from_address").on(table.fromAddress),
     index("idx_emails_message_id").on(table.messageId),
     index("idx_emails_is_read").on(table.isRead),
-    // Daftar inbox per alamat: semua kolom yang dibaca ikut di index, jadi tidak
-    // perlu menyentuh baris tabel maupun body.
     index("idx_emails_inbox_cover").on(
       table.toAddress,
       sql`${table.receivedAt} DESC`,
@@ -77,10 +64,7 @@ export const emails = sqliteTable(
 );
 
 // ─── Email Bodies ────────────────────────────────────────────
-// Body besar (rata-rata ~36 KB) disimpan terpisah supaya baris `emails` tetap
-// kecil. Kolom di belakang body pada baris yang sama memaksa SQLite menelusuri
-// rantai overflow page body di setiap query daftar.
-export const emailBodies = sqliteTable("email_bodies", {
+export const emailBodies = pgTable("email_bodies", {
   emailId: text("email_id")
     .primaryKey()
     .references(() => emails.id, { onDelete: "cascade" }),
@@ -90,7 +74,7 @@ export const emailBodies = sqliteTable("email_bodies", {
 });
 
 // ─── Email Attachments ───────────────────────────────────────
-export const attachments = sqliteTable(
+export const attachments = pgTable(
   "attachments",
   {
     id: text("id").primaryKey(),
@@ -101,15 +85,13 @@ export const attachments = sqliteTable(
     mimeType: text("mime_type").notNull(),
     size: integer("size").notNull(),
     storagePath: text("storage_path").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("idx_attachments_email_id").on(table.emailId)]
 );
 
 // ─── API Keys ────────────────────────────────────────────────
-export const apiKeys = sqliteTable("api_keys", {
+export const apiKeys = pgTable("api_keys", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   keyHash: text("key_hash").notNull().unique(),
@@ -117,22 +99,20 @@ export const apiKeys = sqliteTable("api_keys", {
   permissions: text("permissions").notNull().default('["generate","inbox"]'),
   rateLimit: integer("rate_limit").notNull().default(100),
   ipAllowlist: text("ip_allowlist"), // JSON array of allowed IPs, null = no restriction
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
-  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  isActive: boolean("is_active").notNull().default(true),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
   createdById: text("created_by_id")
     .notNull()
     .references(() => users.id),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── Rate Limit Tracking ─────────────────────────────────────
-export const rateLimitEntries = sqliteTable(
+export const rateLimitEntries = pgTable(
   "rate_limit_entries",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     apiKeyId: text("api_key_id")
       .notNull()
       .references(() => apiKeys.id, { onDelete: "cascade" }),
@@ -140,32 +120,27 @@ export const rateLimitEntries = sqliteTable(
     requestCount: integer("request_count").notNull().default(1),
   },
   (table) => [
-    uniqueIndex("idx_rate_limit_key_window").on(
-      table.apiKeyId,
-      table.windowStart
-    ),
+    uniqueIndex("idx_rate_limit_key_window").on(table.apiKeyId, table.windowStart),
   ]
 );
 
 // ─── Custom Aliases ──────────────────────────────────────────
-export const aliases = sqliteTable(
+export const aliases = pgTable(
   "aliases",
   {
     id: text("id").primaryKey(),
-    address: text("address").notNull().unique(), // full email: user@domain.com
-    localPart: text("local_part").notNull(), // part before @
+    address: text("address").notNull().unique(),
+    localPart: text("local_part").notNull(),
     domainId: text("domain_id")
       .notNull()
       .references(() => domains.id, { onDelete: "cascade" }),
     description: text("description"),
-    expiresAt: integer("expires_at", { mode: "timestamp" }), // null = never
-    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    expiresAt: timestamp("expires_at", { withTimezone: true }), // null = never
+    isActive: boolean("is_active").notNull().default(true),
     createdById: text("created_by_id").references(() => users.id),
     // Diisi bila alias dibuat lewat API key (pelanggan). Pemilik alias.
     apiKeyId: text("api_key_id").references(() => apiKeys.id, { onDelete: "cascade" }),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_aliases_address").on(table.address),
@@ -177,18 +152,16 @@ export const aliases = sqliteTable(
 );
 
 // ─── Audit Log ───────────────────────────────────────────────
-export const auditLogs = sqliteTable(
+export const auditLogs = pgTable(
   "audit_logs",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     userId: text("user_id").references(() => users.id),
-    action: text("action").notNull(), // login, create_domain, delete_email, etc.
-    resource: text("resource"), // domain:xxx, email:xxx, api_key:xxx
-    details: text("details"), // JSON with extra info
+    action: text("action").notNull(),
+    resource: text("resource"),
+    details: text("details"),
     ipAddress: text("ip_address"),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_audit_logs_user_id").on(table.userId),
@@ -198,46 +171,42 @@ export const auditLogs = sqliteTable(
 );
 
 // ─── Settings (Key-Value) ────────────────────────────────────
-export const settings = sqliteTable("settings", {
+export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // ─── Koleksi Nama ────────────────────────────────────────────
-// Duplikat dicegah per gender, tanpa membedakan huruf besar/kecil (ASCII).
-export const namaDepan = sqliteTable(
+// Duplikat dicegah per gender, case-insensitive (lower() index di PostgreSQL).
+export const namaDepan = pgTable(
   "nama_depan",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    gender: text("gender", { enum: ["male", "female"] }).notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    gender: text("gender").notNull(),
     namaDepan: text("nama_depan").notNull(),
   },
   (table) => [
-    uniqueIndex("idx_nama_depan_unik").on(table.gender, sql`${table.namaDepan} COLLATE NOCASE`),
+    uniqueIndex("idx_nama_depan_unik").on(table.gender, sql`lower(${table.namaDepan})`),
     check("nama_depan_gender_check", sql`${table.gender} IN ('male', 'female')`),
   ]
 );
 
-export const namaBelakang = sqliteTable(
+export const namaBelakang = pgTable(
   "nama_belakang",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    gender: text("gender", { enum: ["male", "female"] }).notNull(),
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    gender: text("gender").notNull(),
     namaBelakang: text("nama_belakang").notNull(),
   },
   (table) => [
-    uniqueIndex("idx_nama_belakang_unik").on(table.gender, sql`${table.namaBelakang} COLLATE NOCASE`),
+    uniqueIndex("idx_nama_belakang_unik").on(table.gender, sql`lower(${table.namaBelakang})`),
     check("nama_belakang_gender_check", sql`${table.gender} IN ('male', 'female')`),
   ]
 );
 
 // ─── Identitas yang Sudah Diberikan ──────────────────────────
-// Setiap alamat hasil /api/generate dicatat di sini; `address` unik (huruf kecil)
-// supaya satu alamat tidak pernah diberikan ke dua identitas.
-export const identitas = sqliteTable(
+export const identitas = pgTable(
   "identitas",
   {
     id: text("id").primaryKey(),
@@ -250,12 +219,10 @@ export const identitas = sqliteTable(
     lastName: text("last_name").notNull(),
     gender: text("gender").notNull(),
     dateOfBirth: text("date_of_birth").notNull(),
-    source: text("source", { enum: ["collection", "llm"] }).notNull(),
+    source: text("source").notNull(),
     apiKeyId: text("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("idx_identitas_user").on(table.userId),

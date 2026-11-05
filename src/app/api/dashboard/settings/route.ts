@@ -17,15 +17,15 @@ export async function POST(request: Request) {
 
     if (body.bulk) {
       for (const [key, value] of Object.entries(body.bulk)) {
-        db.run(
-          sql`INSERT INTO settings (key, value, updated_at) VALUES (${key}, ${value as string}, unixepoch())
-              ON CONFLICT(key) DO UPDATE SET value = ${value as string}, updated_at = unixepoch()`
+        await db.execute(
+          sql`INSERT INTO settings (key, value, updated_at) VALUES (${key}, ${value as string}, now())
+              ON CONFLICT(key) DO UPDATE SET value = ${value as string}, updated_at = now()`
         );
       }
     } else if (body.key && body.value !== undefined) {
-      db.run(
-        sql`INSERT INTO settings (key, value, updated_at) VALUES (${body.key}, ${body.value}, unixepoch())
-            ON CONFLICT(key) DO UPDATE SET value = ${body.value}, updated_at = unixepoch()`
+      await db.execute(
+        sql`INSERT INTO settings (key, value, updated_at) VALUES (${body.key}, ${body.value}, now())
+            ON CONFLICT(key) DO UPDATE SET value = ${body.value}, updated_at = now()`
       );
     }
 
@@ -45,7 +45,7 @@ export async function PUT(request: Request) {
 
     const { currentPassword, newPassword } = await request.json();
 
-    const user = db.select().from(users).where(eq(users.id, session.user.id)).get();
+    const user = (await db.select().from(users).where(eq(users.id, session.user.id)))[0];
 
     if (!user) {
       return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
@@ -55,13 +55,12 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Password saat ini salah" }, { status: 400 });
     }
 
-    db.update(users)
+    await db.update(users)
       .set({
         passwordHash: hashSync(newPassword, 12),
         updatedAt: new Date(),
       })
-      .where(eq(users.id, session.user.id))
-      .run();
+      .where(eq(users.id, session.user.id));
 
     return NextResponse.json({ success: true });
   } catch {

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 
   try {
     const input = setorNamaSchema.parse(body);
-    const result = setorNama(input);
+    const result = await setorNama(input);
     const added =
       result.nama_depan?.status === "added" || result.nama_belakang?.status === "added";
     return NextResponse.json(result, { status: added ? 201 : 200 });

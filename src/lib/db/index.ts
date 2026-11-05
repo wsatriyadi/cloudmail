@@ -1,25 +1,17 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
-import path from "path";
-import fs from "fs";
 
-const dbPath = process.env.DATABASE_PATH || "./data/cloudmail.db";
+const connectionString = process.env.DATABASE_URL;
 
-// Pastikan direktori data ada
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+if (!connectionString) {
+  throw new Error(
+    "DATABASE_URL wajib diisi (PostgreSQL connection string). " +
+      "Ganti DATABASE_PATH SQLite dengan DATABASE_URL sebelum menjalankan aplikasi."
+  );
 }
 
-const sqlite = new Database(dbPath);
-
-// Enable WAL mode untuk performa lebih baik
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
-// Tunggu (bukan langsung error SQLITE_BUSY) saat ada koneksi lain yang mengunci —
-// mencegah race saat next build membuka DB dari beberapa worker paralel.
-sqlite.pragma("busy_timeout = 5000");
-
-export const db = drizzle(sqlite, { schema });
-export { sqlite };
+// max kecil: aplikasi ini jalan sebagai satu proses Next.js; pool besar hanya
+// menambah koneksi terbuang di managed Postgres.
+export const sql = postgres(connectionString, { max: 10 });
+export const db = drizzle(sql, { schema });

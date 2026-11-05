@@ -11,14 +11,14 @@ export async function DELETE(request: Request) {
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
 
     // Delete attachment files
-    const atts = db.select().from(attachments).where(eq(attachments.emailId, id)).all();
+    const atts = await db.select().from(attachments).where(eq(attachments.emailId, id));
     for (const att of atts) {
       const filePath = path.join(process.cwd(), "data/uploads", att.storagePath);
       await fs.unlink(filePath).catch(() => {});
     }
 
     // Cascade delete handles attachments in DB
-    db.delete(emails).where(eq(emails.id, id)).run();
+    await db.delete(emails).where(eq(emails.id, id));
 
     return NextResponse.json({ success: true });
   } catch {

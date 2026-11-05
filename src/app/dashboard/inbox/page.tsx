@@ -18,23 +18,21 @@ export default async function InboxPage({
   const user = await requireUser();
   const scope = emailScopeCondition(user.id, user.role);
 
-  const allDomains = db
+  const allDomains = await db
     .select({ id: domains.id, domain: domains.domain })
     .from(domains)
-    .orderBy(domains.domain)
-    .all();
+    .orderBy(domains.domain);
 
   // Get total count
-  const totalResult = db
+  const totalResult = (await db
     .select({ count: count() })
     .from(emails)
-    .where(scope)
-    .get();
-  const totalEmails = totalResult?.count ?? 0;
+    .where(scope))[0];
+  const totalEmails = Number(totalResult?.count ?? 0);
   const totalPages = Math.ceil(totalEmails / pageSize);
 
   // Get paginated emails
-  const emailList = db
+  const emailList = await db
     .select({
       id: emails.id,
       fromAddress: emails.fromAddress,
@@ -52,8 +50,7 @@ export default async function InboxPage({
     .from(emails)
     .where(scope)
     .limit(pageSize)
-    .offset(offset)
-    .all();
+    .offset(offset);
 
   return (
     <div className="space-y-6">

@@ -22,13 +22,13 @@ export async function POST(request: Request) {
 
   try {
     const parsed = aliasSchema.parse(await request.json());
-    const domain = db.select().from(domains).where(eq(domains.domain, parsed.domain)).get();
+    const domain = (await db.select().from(domains).where(eq(domains.domain, parsed.domain)))[0];
     if (!domain?.isActive) {
       return NextResponse.json({ error: "Domain tidak ditemukan atau nonaktif" }, { status: 404 });
     }
 
     const address = `${parsed.localPart}@${parsed.domain}`.toLowerCase();
-    if (db.select({ id: aliases.id }).from(aliases).where(eq(aliases.address, address)).get()) {
+    if ((await db.select({ id: aliases.id }).from(aliases).where(eq(aliases.address, address)))[0]) {
       return NextResponse.json({ error: "Alamat sudah digunakan" }, { status: 409 });
     }
 
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       : null;
 
     // apiKeyId dicatat supaya alias bisa dikaitkan ke pemilik key (pelanggan).
-    db.insert(aliases)
+    await db.insert(aliases)
       .values({
         id,
         address,
@@ -47,8 +47,7 @@ export async function POST(request: Request) {
         description: parsed.description || null,
         expiresAt,
         apiKeyId: authResult.apiKey!.id,
-      })
-      .run();
+      });
 
     return NextResponse.json({ id, address, expiresAt: expiresAt?.toISOString() || null });
   } catch (err) {
@@ -66,7 +65,7 @@ export async function GET(request: Request) {
   }
 
   const owned = await addressesOwnedByApiKey(authResult.apiKey!.id);
-  const rows = db.select().from(aliases).all();
+  const rows = await db.select().from(aliases);
   return NextResponse.json({ aliases: owned ? rows.filter((row) => owned.includes(row.address)) : rows });
 }
 
@@ -79,11 +78,11 @@ export async function DELETE(request: Request) {
   try {
     const { id } = await request.json();
     if (typeof id !== "string" || !id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
-    const alias = db.select().from(aliases).where(eq(aliases.id, id)).get();
+    const alias = (await db.select().from(aliases).where(eq(aliases.id, id)))[0];
     if (!alias || alias.apiKeyId !== authResult.apiKey!.id) {
       return NextResponse.json({ error: "Alias tidak ditemukan" }, { status: 404 });
     }
-    db.delete(aliases).where(eq(aliases.id, id)).run();
+    await db.delete(aliases).where(eq(aliases.id, id));
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Terjadi kesalahan" }, { status: 500 });

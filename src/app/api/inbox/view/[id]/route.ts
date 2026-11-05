@@ -22,21 +22,20 @@ export async function GET(
 
   const { id } = await params;
 
-  const email = getEmailWithBody(id);
+  const email = await getEmailWithBody(id);
   if (!email) return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 });
   const owned = await addressesOwnedByApiKey(authResult.apiKey!.id);
   if (owned && !owned.includes(email.toAddress.toLowerCase())) {
     return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 });
   }
 
-  const emailAttachments = db
+  const emailAttachments = await db
     .select({ id: attachments.id, filename: attachments.filename, mimeType: attachments.mimeType, size: attachments.size })
     .from(attachments)
-    .where(eq(attachments.emailId, id))
-    .all();
+    .where(eq(attachments.emailId, id));
 
   if (!email.isRead) {
-    db.update(emails).set({ isRead: true }).where(eq(emails.id, id)).run();
+    await db.update(emails).set({ isRead: true }).where(eq(emails.id, id));
   }
 
   return NextResponse.json({

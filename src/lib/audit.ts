@@ -21,7 +21,7 @@ export type AuditAction =
   | "restore_upload"
   | "regenerate_secret";
 
-export function logAudit(params: {
+export async function logAudit(params: {
   userId?: string | null;
   action: AuditAction;
   resource?: string;
@@ -29,15 +29,14 @@ export function logAudit(params: {
   ipAddress?: string;
 }) {
   try {
-    db.insert(auditLogs)
+    await db.insert(auditLogs)
       .values({
         userId: params.userId || null,
         action: params.action,
         resource: params.resource || null,
         details: params.details ? JSON.stringify(params.details) : null,
         ipAddress: params.ipAddress || null,
-      })
-      .run();
+      });
   } catch (err) {
     console.error("Audit log error:", err);
   }

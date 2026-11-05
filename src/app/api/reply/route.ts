@@ -24,9 +24,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = replySchema.parse(body);
 
-    const smtpHost = db.select().from(settings).where(eq(settings.key, "smtp_host")).get();
-    const smtpPort = db.select().from(settings).where(eq(settings.key, "smtp_port")).get();
-    const smtpUser = db.select().from(settings).where(eq(settings.key, "smtp_user")).get();
+    const smtpHost = (await db.select().from(settings).where(eq(settings.key, "smtp_host")))[0];
+    const smtpPort = (await db.select().from(settings).where(eq(settings.key, "smtp_port")))[0];
+    const smtpUser = (await db.select().from(settings).where(eq(settings.key, "smtp_user")))[0];
 
     if (!smtpHost?.value) {
       return NextResponse.json({
@@ -37,11 +37,10 @@ export async function POST(request: Request) {
 
     let replyContext = null;
     if (parsed.emailId) {
-      const originalEmail = db
+      const originalEmail = (await db
         .select({ fromAddress: emails.fromAddress, subject: emails.subject, receivedAt: emails.receivedAt })
         .from(emails)
-        .where(eq(emails.id, parsed.emailId))
-        .get();
+        .where(eq(emails.id, parsed.emailId)))[0];
       if (originalEmail) {
         replyContext = {
           originalFrom: originalEmail.fromAddress,

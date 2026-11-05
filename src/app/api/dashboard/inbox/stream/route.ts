@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       };
 
       // Poll every 3 seconds for new emails
-      const interval = setInterval(() => {
+      const interval = setInterval(async () => {
         try {
           let query = db
             .select({
@@ -34,10 +34,9 @@ export async function GET(request: Request) {
             .limit(20);
 
           // If since is provided, only get newer emails
-          // Convert ISO string to epoch seconds (SQLite stores receivedAt as epoch int)
           const results = since
-            ? query.where(sql`${emails.receivedAt} > ${Math.floor(new Date(since).getTime() / 1000)}`).all()
-            : query.all();
+            ? await query.where(sql`${emails.receivedAt} > ${new Date(since)}`)
+            : await query;
 
           if (results.length > 0) {
             sendEvent({ type: "new_emails", emails: results });

@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const att = db.select().from(attachments).where(eq(attachments.id, id)).get();
+  const att = (await db.select().from(attachments).where(eq(attachments.id, id)))[0];
 
   if (!att) {
     return NextResponse.json({ error: "Lampiran tidak ditemukan" }, { status: 404 });

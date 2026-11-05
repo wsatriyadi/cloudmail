@@ -18,16 +18,16 @@ export async function DELETE() {
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
     // Delete emails older than 90 days
-    const result = db
+    const deleted = await db
       .delete(emails)
       .where(lt(emails.receivedAt, ninetyDaysAgo))
-      .run();
+      .returning({ id: emails.id });
 
     return NextResponse.json({
       success: true,
-      deletedCount: result.changes,
+      deletedCount: deleted.length,
       cutoffDate: ninetyDaysAgo.toISOString(),
-      message: `Deleted ${result.changes} emails older than 90 days`,
+      message: `Deleted ${deleted.length} emails older than 90 days`,
     });
   } catch (error) {
     console.error("Email cleanup error:", error);

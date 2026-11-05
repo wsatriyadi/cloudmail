@@ -41,29 +41,26 @@ function generateUsername(firstName: string, lastName: string, attempt: number):
 }
 
 // Alamat terpakai jika pernah diberikan, dipakai alias, atau pernah menerima email.
-function isAddressTaken(address: string): boolean {
-  const given = db.select({ id: identitas.id }).from(identitas).where(eq(identitas.address, address)).get();
+async function isAddressTaken(address: string): Promise<boolean> {
+  const given = (await db.select({ id: identitas.id }).from(identitas).where(eq(identitas.address, address)))[0];
   if (given) return true;
 
-  const alias = db
+  const alias = (await db
     .select({ id: aliases.id })
     .from(aliases)
-    .where(sql`lower(${aliases.address}) = ${address}`)
-    .get();
+    .where(sql`lower(${aliases.address}) = ${address}`))[0];
   if (alias) return true;
 
-  // Bandingkan apa adanya agar idx_emails_to_address terpakai (tabel emails berukuran GB).
-  const received = db
+  const received = (await db
     .select({ one: sql<number>`1` })
     .from(emails)
     .where(eq(emails.toAddress, address))
-    .limit(1)
-    .get();
+    .limit(1))[0];
   return received !== undefined;
 }
 
 export async function createIdentity(activeDomains: ActiveDomain[], apiKeyId: string | null, userId: string | null = null) {
-  const fromCollection = pickIdentityFromCollection();
+  const fromCollection = await pickIdentityFromCollection();
   const person = fromCollection ?? (await generateIdentity());
   const source = fromCollection ? "collection" : "llm";
 
@@ -72,32 +69,29 @@ export async function createIdentity(activeDomains: ActiveDomain[], apiKeyId: st
     const address = `${generateUsername(person.firstName, person.lastName, attempt)}@${domain.domain}`.toLowerCase();
     const username = address.slice(0, address.lastIndexOf("@"));
 
-    // IMMEDIATE: kunci tulis diambil sebelum cek, jadi proses lain tidak bisa menyelip.
-    const claimed = db.transaction(
-      (tx) => {
-        if (isAddressTaken(address)) return false;
-        return (
-          tx
-            .insert(identitas)
-            .values({
-              id: nanoid(),
-              address,
-              username,
-              domainId: domain.id,
-              firstName: person.firstName,
-              lastName: person.lastName,
-              gender: person.gender,
-              dateOfBirth: person.dateOfBirth,
-              source,
-              apiKeyId,
-              userId,
-            })
-            .onConflictDoNothing()
-            .run().changes > 0
-        );
-      },
-      { behavior: "immediate" }
-    );
+    // Unique index pada address adalah penjaga terakhir; onConflictDoNothing
+    // membuat pemilik alamat ditentukan oleh DB, bukan oleh cek aplikasi.
+    const claimed = await db.transaction(async (tx) => {
+      if (await isAddressTaken(address)) return false;
+      const inserted = await tx
+        .insert(identitas)
+        .values({
+          id: nanoid(),
+          address,
+          username,
+          domainId: domain.id,
+          firstName: person.firstName,
+          lastName: person.lastName,
+          gender: person.gender,
+          dateOfBirth: person.dateOfBirth,
+          source,
+          apiKeyId,
+          userId,
+        })
+        .onConflictDoNothing()
+        .returning({ id: identitas.id });
+      return inserted.length > 0;
+    });
 
     if (claimed) {
       return {

@@ -4,8 +4,8 @@ import { emailBodies, emails } from "@/lib/db/schema";
 
 // Email beserta body-nya. Body ada di tabel terpisah agar query daftar tidak
 // membaca isi email yang besar.
-export function getEmailWithBody(id: string) {
-  return db
+export async function getEmailWithBody(id: string) {
+  return (await db
     .select({
       id: emails.id,
       messageId: emails.messageId,
@@ -24,6 +24,5 @@ export function getEmailWithBody(id: string) {
     })
     .from(emails)
     .leftJoin(emailBodies, eq(emailBodies.emailId, emails.id))
-    .where(eq(emails.id, id))
-    .get();
+    .where(eq(emails.id, id)))[0];
 }

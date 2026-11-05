@@ -15,21 +15,20 @@ export default async function EmailDetailPage({
   const { id } = await params;
   const user = await requireUser();
 
-  const email = getEmailWithBody(id);
+  const email = await getEmailWithBody(id);
   if (!email) notFound();
   const scope = emailScopeCondition(user.id, user.role);
-  if (scope && !db.select({ id: emails.id }).from(emails).where(and(eq(emails.id, id), scope)).get()) notFound();
+  if (scope && !(await db.select({ id: emails.id }).from(emails).where(and(eq(emails.id, id), scope)))[0]) notFound();
 
 
   if (!email.isRead) {
-    db.update(emails).set({ isRead: true }).where(eq(emails.id, id)).run();
+    await db.update(emails).set({ isRead: true }).where(eq(emails.id, id));
   }
 
-  const emailAttachments = db
+  const emailAttachments = await db
     .select({ id: attachments.id, filename: attachments.filename, mimeType: attachments.mimeType, size: attachments.size })
     .from(attachments)
-    .where(eq(attachments.emailId, id))
-    .all();
+    .where(eq(attachments.emailId, id));
 
   return (
     <EmailViewer

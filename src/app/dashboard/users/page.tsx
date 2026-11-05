@@ -4,7 +4,7 @@ import { desc } from "drizzle-orm";
 import { UserTable } from "@/components/users/user-table";
 
 import { requireAdmin } from "@/lib/authz";
-function getUsers() {
+async function getUsers() {
   return db
     .select({
       id: users.id,
@@ -15,12 +15,12 @@ function getUsers() {
     })
     .from(users)
     .orderBy(desc(users.createdAt))
-    .all();
+    ;
 }
 
 export default async function UsersPage() {
   await requireAdmin();
-  const userList = getUsers();
+  const userList = await getUsers();
 
   return (
     <div className="space-y-6">

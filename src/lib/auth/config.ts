@@ -21,11 +21,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        const user = db
+        const user = (await db
           .select()
           .from(users)
-          .where(eq(users.email, email))
-          .get();
+          .where(eq(users.email, email)))[0];
 
         if (!user) return null;
 

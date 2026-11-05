@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
     const keyPrefix = rawKey.slice(0, 11);
     const id = nanoid();
-    db.insert(apiKeys)
+    await db.insert(apiKeys)
       .values({
         id,
         name,
@@ -34,8 +34,7 @@ export async function POST(request: Request) {
         permissions: JSON.stringify(permissions || ["generate", "inbox"]),
         rateLimit: parsedLimit ?? (cap ?? 100),
         createdById: session.id,
-      })
-      .run();
+      });
 
     return NextResponse.json({ id, key: rawKey, prefix: keyPrefix });
   } catch {
@@ -49,7 +48,7 @@ export async function PATCH(request: Request) {
     if (!session) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
     const { id, isActive, rateLimit } = await request.json();
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
-    const before = db.select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+    const before = (await db.select().from(apiKeys).where(eq(apiKeys.id, id)))[0];
     if (!before) return NextResponse.json({ error: "API key tidak ditemukan" }, { status: 404 });
     if (session.role !== "admin" && before.createdById !== session.id) {
       return NextResponse.json({ error: "Tidak berhak mengubah API key ini" }, { status: 403 });
@@ -68,9 +67,9 @@ export async function PATCH(request: Request) {
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "Tidak ada perubahan" }, { status: 400 });
     }
-    db.update(apiKeys).set(updates).where(eq(apiKeys.id, id)).run();
+    await db.update(apiKeys).set(updates).where(eq(apiKeys.id, id));
     if (updates.rateLimit !== undefined && updates.rateLimit !== before.rateLimit) {
-      logAudit({
+      await logAudit({
         userId: session.id,
         action: "update_api_key",
         resource: `api_key:${id}`,
@@ -90,12 +89,12 @@ export async function DELETE(request: Request) {
     if (!session) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
-    const key = db.select().from(apiKeys).where(eq(apiKeys.id, id)).get();
+    const key = (await db.select().from(apiKeys).where(eq(apiKeys.id, id)))[0];
     if (!key) return NextResponse.json({ error: "API key tidak ditemukan" }, { status: 404 });
     if (session.role !== "admin" && key.createdById !== session.id) {
       return NextResponse.json({ error: "Tidak berhak menghapus API key ini" }, { status: 403 });
     }
-    db.delete(apiKeys).where(eq(apiKeys.id, id)).run();
+    await db.delete(apiKeys).where(eq(apiKeys.id, id));
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Terjadi kesalahan" }, { status: 500 });

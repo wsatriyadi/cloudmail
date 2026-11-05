@@ -3,12 +3,12 @@ import { getLLMConfig, createLLMClient } from "@/lib/llm";
 
 export async function POST() {
   try {
-    const config = getLLMConfig();
+    const config = await getLLMConfig();
     if (!config.apiKey) {
       return NextResponse.json({ error: "API key belum dikonfigurasi" }, { status: 400 });
     }
 
-    const client = createLLMClient(config);
+    const client = await createLLMClient(config);
     const response = await client.chat.completions.create({
       model: config.model,
       messages: [{ role: "user", content: "Say hello in one word." }],

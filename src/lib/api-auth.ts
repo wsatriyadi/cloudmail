@@ -24,11 +24,10 @@ export async function authenticateApiRequest(
   const key = authHeader.slice(7);
   const keyHash = sha256(key);
 
-  const apiKey = db
+  const apiKey = (await db
     .select()
     .from(apiKeys)
-    .where(and(eq(apiKeys.keyHash, keyHash), eq(apiKeys.isActive, true)))
-    .get();
+    .where(and(eq(apiKeys.keyHash, keyHash), eq(apiKeys.isActive, true))))[0];
 
   if (!apiKey) {
     return { error: "API key tidak valid", status: 401 };
@@ -53,32 +52,31 @@ export async function authenticateApiRequest(
   }
 
   // Check rate limit
-  const allowed = checkRateLimit(apiKey.id, apiKey.rateLimit);
+  const allowed = await checkRateLimit(apiKey.id, apiKey.rateLimit);
   if (!allowed) {
     return { error: "Rate limit terlampaui. Coba lagi nanti.", status: 429 };
   }
 
   // Update last used
-  db.update(apiKeys)
+  await db.update(apiKeys)
     .set({ lastUsedAt: new Date() })
-    .where(eq(apiKeys.id, apiKey.id))
-    .run();
+    .where(eq(apiKeys.id, apiKey.id));
 
   return { apiKey };
 }
 
-function checkRateLimit(apiKeyId: string, limit: number): boolean {
+async function checkRateLimit(apiKeyId: string, limit: number): Promise<boolean> {
   const now = Math.floor(Date.now() / 1000);
   const currentWindow = Math.floor(now / 60);
 
-  db.run(
+  await db.execute(
     sql`INSERT INTO rate_limit_entries (api_key_id, window_start, request_count)
         VALUES (${apiKeyId}, ${currentWindow}, 1)
         ON CONFLICT (api_key_id, window_start)
-        DO UPDATE SET request_count = request_count + 1`
+        DO UPDATE SET request_count = rate_limit_entries.request_count + 1`
   );
 
-  const result = db
+  const result = (await db
     .select({
       total: sql<number>`COALESCE(SUM(request_count), 0)`,
     })
@@ -88,15 +86,13 @@ function checkRateLimit(apiKeyId: string, limit: number): boolean {
         eq(rateLimitEntries.apiKeyId, apiKeyId),
         gte(rateLimitEntries.windowStart, currentWindow - 1)
       )
-    )
-    .get();
+    ))[0];
 
-  return (result?.total ?? 0) <= limit;
+  return Number(result?.total ?? 0) <= limit;
 }
 
-export function cleanupRateLimits() {
+export async function cleanupRateLimits() {
   const cutoff = Math.floor(Date.now() / 1000 / 60) - 10;
-  db.delete(rateLimitEntries)
-    .where(sql`${rateLimitEntries.windowStart} < ${cutoff}`)
-    .run();
+  await db.delete(rateLimitEntries)
+    .where(sql`${rateLimitEntries.windowStart} < ${cutoff}`);
 }

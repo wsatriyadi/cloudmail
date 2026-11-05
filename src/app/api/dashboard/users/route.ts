@@ -18,8 +18,8 @@ export async function GET() {
   const session = await sessionUser();
   if (!session) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   if (session.role !== "admin") return NextResponse.json({ error: "Akses admin diperlukan" }, { status: 403 });
-  const rows = db.select({ id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt })
-    .from(users).orderBy(desc(users.createdAt)).all();
+  const rows = await db.select({ id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt })
+    .from(users).orderBy(desc(users.createdAt));
   return NextResponse.json({ users: rows });
 }
 
@@ -29,11 +29,11 @@ export async function POST(request: Request) {
   if (session.role !== "admin") return NextResponse.json({ error: "Akses admin diperlukan" }, { status: 403 });
   try {
     const parsed = createUserSchema.parse(await request.json());
-    if (db.select({ id: users.id }).from(users).where(eq(users.email, parsed.email)).get()) {
+    if ((await db.select({ id: users.id }).from(users).where(eq(users.email, parsed.email)))[0]) {
       return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 409 });
     }
     const id = nanoid();
-    db.insert(users).values({ id, email: parsed.email, passwordHash: hashSync(parsed.password, 12), name: parsed.name, role: parsed.role }).run();
+    await db.insert(users).values({ id, email: parsed.email, passwordHash: hashSync(parsed.password, 12), name: parsed.name, role: parsed.role });
     return NextResponse.json({ id, email: parsed.email }, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) return NextResponse.json({ error: err.errors[0].message }, { status: 400 });
@@ -50,7 +50,7 @@ export async function PATCH(request: Request) {
     if (typeof id !== "string" || !["admin", "pelanggan", "viewer", "api-only"].includes(role)) {
       return NextResponse.json({ error: "ID atau role tidak valid" }, { status: 400 });
     }
-    db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, id)).run();
+    await db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, id));
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Terjadi kesalahan" }, { status: 500 });
@@ -64,10 +64,10 @@ export async function DELETE(request: Request) {
   try {
     const { id } = await request.json();
     if (typeof id !== "string" || !id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
-    const admins = db.select({ id: users.id }).from(users).where(eq(users.role, "admin")).all();
-    const target = db.select().from(users).where(eq(users.id, id)).get();
+    const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+    const target = (await db.select().from(users).where(eq(users.id, id)))[0];
     if (target?.role === "admin" && admins.length <= 1) return NextResponse.json({ error: "Tidak bisa menghapus admin terakhir" }, { status: 400 });
-    db.delete(users).where(eq(users.id, id)).run();
+    await db.delete(users).where(eq(users.id, id));
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: "Terjadi kesalahan" }, { status: 500 });

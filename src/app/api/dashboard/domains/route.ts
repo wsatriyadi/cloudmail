@@ -26,20 +26,19 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = domainSchema.parse(body);
 
-    const existing = db.select().from(domains).where(eq(domains.domain, parsed.domain)).get();
+    const existing = (await db.select().from(domains).where(eq(domains.domain, parsed.domain)))[0];
     if (existing) {
       return NextResponse.json({ error: "Domain sudah terdaftar" }, { status: 409 });
     }
 
     const id = nanoid();
-    db.insert(domains)
+    await db.insert(domains)
       .values({
         id,
         domain: parsed.domain,
         description: parsed.description || null,
         isActive: parsed.isActive,
-      })
-      .run();
+      });
 
     return NextResponse.json({ id, domain: parsed.domain });
   } catch (err) {
@@ -60,20 +59,19 @@ export async function PUT(request: Request) {
 
     const parsed = domainSchema.parse(data);
 
-    const existing = db.select().from(domains).where(eq(domains.domain, parsed.domain)).get();
+    const existing = (await db.select().from(domains).where(eq(domains.domain, parsed.domain)))[0];
     if (existing && existing.id !== id) {
       return NextResponse.json({ error: "Domain sudah digunakan" }, { status: 409 });
     }
 
-    db.update(domains)
+    await db.update(domains)
       .set({
         domain: parsed.domain,
         description: parsed.description || null,
         isActive: parsed.isActive,
         updatedAt: new Date(),
       })
-      .where(eq(domains.id, id))
-      .run();
+      .where(eq(domains.id, id));
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -91,10 +89,9 @@ export async function PATCH(request: Request) {
     const { id, isActive } = await request.json();
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
 
-    db.update(domains)
+    await db.update(domains)
       .set({ isActive, updatedAt: new Date() })
-      .where(eq(domains.id, id))
-      .run();
+      .where(eq(domains.id, id));
 
     return NextResponse.json({ success: true });
   } catch {
@@ -109,7 +106,7 @@ export async function DELETE(request: Request) {
     const { id } = await request.json();
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
 
-    db.delete(domains).where(eq(domains.id, id)).run();
+    await db.delete(domains).where(eq(domains.id, id));
 
     return NextResponse.json({ success: true });
   } catch {

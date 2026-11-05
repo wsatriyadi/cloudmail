@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     // Domain yang sudah ada di DB
-    const existingRows = db.select({ domain: domains.domain }).from(domains).all();
+    const existingRows = await db.select({ domain: domains.domain }).from(domains);
     const existingSet = new Set(existingRows.map((r) => r.domain.toLowerCase()));
 
     const added: string[] = [];
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     }
 
     if (toInsert.length > 0) {
-      db.insert(domains).values(toInsert).run();
+      await db.insert(domains).values(toInsert);
     }
 
     return NextResponse.json({

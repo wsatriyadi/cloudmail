@@ -4,7 +4,7 @@ import { desc, sql, eq } from "drizzle-orm";
 import { requireUser } from "@/lib/authz";
 import { AliasTable } from "@/components/aliases/alias-table";
 
-function getAliases(userId: string | null) {
+async function getAliases(userId: string | null) {
   return db
     .select({
       id: aliases.id,
@@ -20,21 +20,19 @@ function getAliases(userId: string | null) {
     .from(aliases)
     .where(userId ? eq(aliases.createdById, userId) : undefined)
     .orderBy(desc(aliases.createdAt))
-    .all();
 }
 
-function getDomains() {
+async function getDomains() {
   return db
     .select({ id: domains.id, domain: domains.domain })
-    .from(domains)
-    .all();
+    .from(domains);
 }
 
 export default async function AliasesPage() {
   const user = await requireUser();
   const ownerId = user.role === "admin" ? null : user.id;
-  const aliasList = getAliases(ownerId);
-  const domainList = getDomains();
+  const aliasList = await getAliases(ownerId);
+  const domainList = await getDomains();
 
   return (
     <div className="space-y-6">

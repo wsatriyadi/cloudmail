@@ -4,30 +4,27 @@ import { aliases, apiKeys, emails, identitas, users } from "@/lib/db/schema";
 
 // Addresses owned by user directly or through their API keys.
 export async function addressesOwnedBy(userId: string): Promise<string[]> {
-  const keyIds = db
+  const keyIds = (await db
     .select({ id: apiKeys.id })
     .from(apiKeys)
-    .where(eq(apiKeys.createdById, userId))
-    .all()
+    .where(eq(apiKeys.createdById, userId)))
     .map((key) => key.id);
 
-  const ownAliases = db
+  const ownAliases = (await db
     .select({ address: aliases.address })
     .from(aliases)
-    .where(eq(aliases.createdById, userId))
-    .all()
+    .where(eq(aliases.createdById, userId)))
     .map((row) => row.address);
   const keyAliases = keyIds.length
-    ? db.select({ address: aliases.address }).from(aliases).where(inArray(aliases.apiKeyId, keyIds)).all().map((row) => row.address)
+    ? (await db.select({ address: aliases.address }).from(aliases).where(inArray(aliases.apiKeyId, keyIds))).map((row) => row.address)
     : [];
   const keyIdentities = keyIds.length
-    ? db.select({ address: identitas.address }).from(identitas).where(inArray(identitas.apiKeyId, keyIds)).all().map((row) => row.address)
+    ? (await db.select({ address: identitas.address }).from(identitas).where(inArray(identitas.apiKeyId, keyIds))).map((row) => row.address)
     : [];
-  const dashboardIdentities = db
+  const dashboardIdentities = (await db
     .select({ address: identitas.address })
     .from(identitas)
-    .where(eq(identitas.userId, userId))
-    .all()
+    .where(eq(identitas.userId, userId)))
     .map((row) => row.address);
 
   return [...new Set([...ownAliases, ...keyAliases, ...keyIdentities, ...dashboardIdentities])];
@@ -52,12 +49,11 @@ export function emailScopeCondition(userId: string, role: string) {
 
 // null means API key owner is not a customer and retains unrestricted API access.
 export async function addressesOwnedByApiKey(apiKeyId: string): Promise<string[] | null> {
-  const owner = db
+  const owner = (await db
     .select({ id: users.id, role: users.role })
     .from(apiKeys)
     .leftJoin(users, eq(users.id, apiKeys.createdById))
-    .where(eq(apiKeys.id, apiKeyId))
-    .get();
+    .where(eq(apiKeys.id, apiKeyId)))[0];
 
   if (!owner?.id || owner.role !== "pelanggan") return null;
   return addressesOwnedBy(owner.id);

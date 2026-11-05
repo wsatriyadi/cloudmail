@@ -11,11 +11,10 @@ import { logAudit } from "@/lib/audit";
 export async function POST() {
   const user = await requireUser();
 
-  const activeDomains = db
+  const activeDomains = await db
     .select({ id: domains.id, domain: domains.domain })
     .from(domains)
-    .where(sql`${domains.isActive} = 1`)
-    .all();
+    .where(sql`${domains.isActive} = true`);
 
   if (activeDomains.length === 0) {
     return NextResponse.json({ error: "Tidak ada domain aktif" }, { status: 503 });
@@ -23,7 +22,7 @@ export async function POST() {
 
   try {
     const identity = await createIdentity(activeDomains, null, user.id);
-    logAudit({ userId: user.id, action: "generate_identity", resource: `identity:${identity.email}` });
+    await logAudit({ userId: user.id, action: "generate_identity", resource: `identity:${identity.email}` });
     return NextResponse.json(identity);
   } catch (err: unknown) {
     return NextResponse.json(

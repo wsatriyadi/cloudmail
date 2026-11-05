@@ -3,8 +3,8 @@ import { settings } from "@/lib/db/schema";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { requireUser } from "@/lib/authz";
 
-function getSettings() {
-  const rows = db.select().from(settings).all();
+async function getSettings() {
+  const rows = await db.select().from(settings);
   const map: Record<string, string> = {};
   for (const row of rows) {
     map[row.key] = row.value;
@@ -14,7 +14,7 @@ function getSettings() {
 
 export default async function SettingsPage() {
   const user = await requireUser();
-  const settingsMap = getSettings();
+  const settingsMap = await getSettings();
 
   return (
     <div className="space-y-6">

@@ -7,9 +7,9 @@ export async function POST() {
   try {
     const secret = crypto.randomBytes(32).toString("hex");
 
-    db.run(
-      sql`INSERT INTO settings (key, value, updated_at) VALUES ('worker_secret', ${secret}, unixepoch())
-          ON CONFLICT(key) DO UPDATE SET value = ${secret}, updated_at = unixepoch()`
+    await db.execute(
+      sql`INSERT INTO settings (key, value, updated_at) VALUES ('worker_secret', ${secret}, now())
+          ON CONFLICT(key) DO UPDATE SET value = ${secret}, updated_at = now()`
     );
 
     return NextResponse.json({ secret });

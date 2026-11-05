@@ -15,11 +15,10 @@ export async function verifyWorkerSignature(
   if (Math.abs(now - parseInt(timestamp)) > 300) return false;
 
   // Get worker secret from settings
-  const secretSetting = db
+  const secretSetting = (await db
     .select()
     .from(settings)
-    .where(eq(settings.key, "worker_secret"))
-    .get();
+    .where(eq(settings.key, "worker_secret")))[0];
 
   if (!secretSetting) return false;
 

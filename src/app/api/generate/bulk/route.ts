@@ -22,16 +22,15 @@ export async function POST(request: Request) {
     const url = new URL(request.url);
     const count = Math.min(parseInt(url.searchParams.get("count") || "5"), 20); // max 20
 
-    const activeDomains = db
+    const activeDomains = await db
       .select({ id: domains.id, domain: domains.domain })
       .from(domains)
-      .where(sql`${domains.isActive} = 1`)
-      .all();
+      .where(sql`${domains.isActive} = true`);
 
     if (activeDomains.length === 0) {
       return NextResponse.json({ error: "Tidak ada domain aktif" }, { status: 503 });
     }
-    const owner = db.select({ createdById: apiKeys.createdById }).from(apiKeys).where(eq(apiKeys.id, authResult.apiKey!.id)).get();
+    const owner = (await db.select({ createdById: apiKeys.createdById }).from(apiKeys).where(eq(apiKeys.id, authResult.apiKey!.id)))[0];
 
     const identities = [];
 

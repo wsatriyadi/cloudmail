@@ -9,63 +9,46 @@ import { RecentEmails } from "@/components/dashboard/recent-emails";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import Link from "next/link";
 
-function getStats() {
-  const totalEmails =
-    db.select({ count: sql<number>`COUNT(*)` }).from(emails).get()?.count ?? 0;
+async function getStats() {
+  const totalEmails = Number((await db.select({ count: sql<number>`COUNT(*)` }).from(emails))[0]?.count ?? 0);
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const todayEpoch = Math.floor(todayStart.getTime() / 1000);
-  const emailsToday =
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(emails)
-      .where(sql`${emails.receivedAt} >= ${todayEpoch}`)
-      .get()?.count ?? 0;
+  const emailsToday = Number((await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(emails)
+    .where(sql`${emails.receivedAt} >= ${todayStart}`))[0]?.count ?? 0);
 
   // Yesterday's emails for trend calculation
   const yesterdayStart = new Date(todayStart);
   yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-  const yesterdayEpoch = Math.floor(yesterdayStart.getTime() / 1000);
-  const emailsYesterday =
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(emails)
-      .where(sql`${emails.receivedAt} >= ${yesterdayEpoch} AND ${emails.receivedAt} < ${todayEpoch}`)
-      .get()?.count ?? 0;
+  const emailsYesterday = Number((await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(emails)
+    .where(sql`${emails.receivedAt} >= ${yesterdayStart} AND ${emails.receivedAt} < ${todayStart}`))[0]?.count ?? 0);
 
-  const activeDomains =
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(domains)
-      .where(sql`${domains.isActive} = 1`)
-      .get()?.count ?? 0;
+  const activeDomains = Number((await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(domains)
+    .where(sql`${domains.isActive} = true`))[0]?.count ?? 0);
 
-  const totalDomains =
-    db.select({ count: sql<number>`COUNT(*)` }).from(domains).get()?.count ?? 0;
+  const totalDomains = Number((await db.select({ count: sql<number>`COUNT(*)` }).from(domains))[0]?.count ?? 0);
 
-  const uniqueAddresses =
-    db
-      .select({ count: sql<number>`COUNT(DISTINCT ${emails.toAddress})` })
-      .from(emails)
-      .get()?.count ?? 0;
+  const uniqueAddresses = Number((await db
+    .select({ count: sql<number>`COUNT(DISTINCT ${emails.toAddress})` })
+    .from(emails))[0]?.count ?? 0);
 
-  const activeApiKeys =
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(apiKeys)
-      .where(sql`${apiKeys.isActive} = 1`)
-      .get()?.count ?? 0;
+  const activeApiKeys = Number((await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(apiKeys)
+    .where(sql`${apiKeys.isActive} = true`))[0]?.count ?? 0);
 
-  const totalAliases =
-    db.select({ count: sql<number>`COUNT(*)` }).from(aliases).get()?.count ?? 0;
+  const totalAliases = Number((await db.select({ count: sql<number>`COUNT(*)` }).from(aliases))[0]?.count ?? 0);
 
-  const unreadCount =
-    db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(emails)
-      .where(sql`${emails.isRead} = 0`)
-      .get()?.count ?? 0;
+  const unreadCount = Number((await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(emails)
+    .where(sql`${emails.isRead} = false`))[0]?.count ?? 0);
 
   // Calculate trend percentage
   const trendPercentage = emailsYesterday > 0 
@@ -86,7 +69,7 @@ function getStats() {
   };
 }
 
-function getRecentEmails() {
+async function getRecentEmails() {
   return db
     .select({
       id: emails.id,
@@ -101,10 +84,9 @@ function getRecentEmails() {
     .from(emails)
     .orderBy(desc(emails.receivedAt))
     .limit(10)
-    .all();
 }
 
-function getActivityData() {
+async function getActivityData() {
   const days = 7;
   const data: { date: string; count: number }[] = [];
 
@@ -116,17 +98,15 @@ function getActivityData() {
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + 1);
 
-    const startEpoch = Math.floor(date.getTime() / 1000);
-    const endEpoch = Math.floor(nextDate.getTime() / 1000);
+    const start = date;
+    const end = nextDate;
 
-    const count =
-      db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(emails)
-        .where(
-          sql`${emails.receivedAt} >= ${startEpoch} AND ${emails.receivedAt} < ${endEpoch}`
-        )
-        .get()?.count ?? 0;
+    const count = Number((await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(emails)
+      .where(
+        sql`${emails.receivedAt} >= ${start} AND ${emails.receivedAt} < ${end}`
+      ))[0]?.count ?? 0);
 
     data.push({
       date: date.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" }),
@@ -137,10 +117,10 @@ function getActivityData() {
   return data;
 }
 
-export default function DashboardPage() {
-  const stats = getStats();
-  const recentEmails = getRecentEmails();
-  const activityData = getActivityData();
+export default async function DashboardPage() {
+  const stats = await getStats();
+  const recentEmails = await getRecentEmails();
+  const activityData = await getActivityData();
 
   return (
     <div className="space-y-8">
@@ -353,7 +333,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs font-mono">
-              SQLite
+              PostgreSQL
             </Badge>
             <Badge variant="outline" className="text-xs">
               {stats.totalEmails.toLocaleString("id-ID")} records
