@@ -33,9 +33,10 @@ export async function GET(request: Request) {
             .orderBy(desc(emails.receivedAt))
             .limit(20);
 
-          // If since is provided, only get newer emails
+          // If since is provided, only get newer emails.
+          // postgres-js menolak Date mentah di template sql; kirim ISO string.
           const results = since
-            ? await query.where(sql`${emails.receivedAt} > ${new Date(since)}`)
+            ? await query.where(sql`${emails.receivedAt} > ${new Date(since).toISOString()}`)
             : await query;
 
           if (results.length > 0) {

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { emails, domains, apiKeys, aliases } from "@/lib/db/schema";
-import { sql, desc, gte } from "drizzle-orm";
+import { sql, desc, gte, lt, and, count } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,17 +15,17 @@ async function getStats() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const emailsToday = Number((await db
-    .select({ count: sql<number>`COUNT(*)` })
+    .select({ count: count() })
     .from(emails)
-    .where(sql`${emails.receivedAt} >= ${todayStart}`))[0]?.count ?? 0);
+    .where(gte(emails.receivedAt, todayStart)))[0]?.count ?? 0);
 
   // Yesterday's emails for trend calculation
   const yesterdayStart = new Date(todayStart);
   yesterdayStart.setDate(yesterdayStart.getDate() - 1);
   const emailsYesterday = Number((await db
-    .select({ count: sql<number>`COUNT(*)` })
+    .select({ count: count() })
     .from(emails)
-    .where(sql`${emails.receivedAt} >= ${yesterdayStart} AND ${emails.receivedAt} < ${todayStart}`))[0]?.count ?? 0);
+    .where(and(gte(emails.receivedAt, yesterdayStart), lt(emails.receivedAt, todayStart))))[0]?.count ?? 0);
 
   const activeDomains = Number((await db
     .select({ count: sql<number>`COUNT(*)` })
@@ -101,16 +101,14 @@ async function getActivityData() {
     const start = date;
     const end = nextDate;
 
-    const count = Number((await db
-      .select({ count: sql<number>`COUNT(*)` })
+    const dayCount = Number((await db
+      .select({ count: count() })
       .from(emails)
-      .where(
-        sql`${emails.receivedAt} >= ${start} AND ${emails.receivedAt} < ${end}`
-      ))[0]?.count ?? 0);
+      .where(and(gte(emails.receivedAt, start), lt(emails.receivedAt, end))))[0]?.count ?? 0);
 
     data.push({
       date: date.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" }),
-      count,
+      count: dayCount,
     });
   }
 
