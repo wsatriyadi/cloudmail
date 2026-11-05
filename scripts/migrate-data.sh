@@ -11,10 +11,12 @@ set -euo pipefail
 : "${DATABASE_URL:?DATABASE_URL wajib diisi}"
 cd "$(dirname "$0")/.."
 
-# Urutan: parent dulu agar FK langsung valid.
+# Inbox (emails, email_bodies, attachments) sengaja tidak dimigrasi: 290k email
+# memuat ~10 GB body sehingga copy berjam-jam di disk server ini. Karena
+# attachments punya FK ke emails, tabel itu ikut dilewati.
 TABLES=(
   users domains api_keys settings nama_depan nama_belakang
-  emails email_bodies attachments aliases identitas rate_limit_entries audit_logs
+  aliases identitas rate_limit_entries audit_logs
 )
 SERIAL_TABLES=(rate_limit_entries audit_logs nama_depan nama_belakang)
 
@@ -42,12 +44,10 @@ done
 echo "==> Verifikasi FK"
 issues=$(psql "$DATABASE_URL" -tAc "
   SELECT COUNT(*) FROM (
-    SELECT 1 FROM emails e LEFT JOIN domains d ON d.id = e.domain_id WHERE d.id IS NULL
-    UNION ALL SELECT 1 FROM email_bodies b LEFT JOIN emails e ON e.id = b.email_id WHERE e.id IS NULL
-    UNION ALL SELECT 1 FROM attachments a LEFT JOIN emails e ON e.id = a.email_id WHERE e.id IS NULL
-    UNION ALL SELECT 1 FROM aliases al LEFT JOIN domains d ON d.id = al.domain_id WHERE d.id IS NULL
+    SELECT 1 FROM aliases al LEFT JOIN domains d ON d.id = al.domain_id WHERE d.id IS NULL
     UNION ALL SELECT 1 FROM identitas i LEFT JOIN domains d ON d.id = i.domain_id WHERE d.id IS NULL
     UNION ALL SELECT 1 FROM api_keys k LEFT JOIN users u ON u.id = k.created_by_id WHERE u.id IS NULL
+    UNION ALL SELECT 1 FROM aliases al LEFT JOIN api_keys k ON k.id = al.api_key_id WHERE al.api_key_id IS NOT NULL AND k.id IS NULL
   ) t")
 echo "FK orphan rows: $issues"
 [[ "$issues" == "0" ]] || { echo "FK tidak konsisten"; exit 1; }
@@ -56,8 +56,9 @@ echo "==> Bandingkan jumlah baris SQLite vs PostgreSQL"
 node -e "
 const Database = require('better-sqlite3');
 const db = new Database(process.env.SQLITE_PATH || './data/cloudmail.db', { readonly: true });
-const tables = ['users','domains','api_keys','emails','email_bodies','attachments','aliases','identitas','rate_limit_entries','audit_logs','settings','nama_depan','nama_belakang'];
-for (const t of tables) console.log(t + '=' + db.prepare('SELECT COUNT(*) c FROM ' + t).get().c);
+for (const t of ['users','domains','api_keys','aliases','identitas','rate_limit_entries','audit_logs','settings','nama_depan','nama_belakang']) {
+  console.log(t + '=' + db.prepare('SELECT COUNT(*) c FROM ' + t).get().c);
+}
 " > /tmp/sqlite-counts.txt
 while IFS='=' read -r table sqliteCount; do
   pgCount=$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM $table")
@@ -68,4 +69,4 @@ while IFS='=' read -r table sqliteCount; do
   echo "OK $table=$pgCount"
 done < /tmp/sqlite-counts.txt
 
-echo "Selesai. Jumlah baris identik."
+echo "Selesai. Inbox tidak dimigrasi (tabel emails/email_bodies/attachments kosong)."
