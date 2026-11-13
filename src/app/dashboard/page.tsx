@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mail, Globe, Key, Users, TrendingUp, ArrowUpRight, AtSign, Activity, Plus, Settings, Eye } from "lucide-react";
 import { RecentEmails } from "@/components/dashboard/recent-emails";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
+import { describeRetention, getRetentionDays } from "@/lib/retention";
 import Link from "next/link";
 
 async function getStats() {
@@ -119,6 +120,7 @@ export default async function DashboardPage() {
   const stats = await getStats();
   const recentEmails = await getRecentEmails();
   const activityData = await getActivityData();
+  const retentionDays = await getRetentionDays();
 
   return (
     <div className="space-y-8">
@@ -327,7 +329,7 @@ export default async function DashboardPage() {
             <Activity className="h-4 w-4" />
             <span>Sistem berjalan normal</span>
             <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">Retensi email: 90 hari</span>
+            <span className="hidden sm:inline">Retensi email: {describeRetention(retentionDays)}</span>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs font-mono">

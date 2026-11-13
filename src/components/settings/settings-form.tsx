@@ -33,6 +33,16 @@ export function SettingsForm({ settings, isAdmin }: { settings: Record<string, s
   const [savingLlm, setSavingLlm] = useState(false);
   const [testingLlm, setTestingLlm] = useState(false);
 
+  // SMTP
+  const [smtpHost, setSmtpHost] = useState(settings.smtp_host || "");
+  const [smtpPort, setSmtpPort] = useState(settings.smtp_port || "587");
+  const [smtpUser, setSmtpUser] = useState(settings.smtp_user || "");
+  const [smtpPassword, setSmtpPassword] = useState(settings.smtp_password || "");
+  const [smtpSecure, setSmtpSecure] = useState(settings.smtp_secure || "false");
+  const [smtpFrom, setSmtpFrom] = useState(settings.smtp_from || "");
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [savingSmtp, setSavingSmtp] = useState(false);
+
   // Retention
   const [retention, setRetention] = useState(settings.email_retention_days || "30");
   const [savingRetention, setSavingRetention] = useState(false);
@@ -110,6 +120,33 @@ export function SettingsForm({ settings, isAdmin }: { settings: Record<string, s
       toast({ title: "Gagal menyimpan", variant: "destructive" });
     } finally {
       setSavingLlm(false);
+    }
+  }
+
+  async function handleSaveSmtp() {
+    setSavingSmtp(true);
+    try {
+      const res = await fetch("/api/dashboard/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bulk: {
+            smtp_host: smtpHost,
+            smtp_port: smtpPort,
+            smtp_user: smtpUser,
+            smtp_password: smtpPassword,
+            smtp_secure: smtpSecure,
+            smtp_from: smtpFrom,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("Gagal menyimpan");
+      toast({ title: "Konfigurasi SMTP tersimpan" });
+      router.refresh();
+    } catch {
+      toast({ title: "Gagal menyimpan", variant: "destructive" });
+    } finally {
+      setSavingSmtp(false);
     }
   }
 
@@ -219,6 +256,90 @@ export function SettingsForm({ settings, isAdmin }: { settings: Record<string, s
                 Tes Koneksi
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SMTP Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Konfigurasi SMTP</CardTitle>
+          <CardDescription>
+            Digunakan endpoint <code>/api/reply</code> untuk mengirim email balasan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="max-w-lg space-y-4">
+            <div className="grid gap-4 sm:grid-cols-[1fr_120px]">
+              <div className="space-y-2">
+                <Label>SMTP Host</Label>
+                <Input
+                  value={smtpHost}
+                  onChange={(e) => setSmtpHost(e.target.value)}
+                  placeholder="smtp.example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Port</Label>
+                <Input
+                  value={smtpPort}
+                  onChange={(e) => setSmtpPort(e.target.value)}
+                  placeholder="587"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>SMTP User</Label>
+              <Input
+                value={smtpUser}
+                onChange={(e) => setSmtpUser(e.target.value)}
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>SMTP Password</Label>
+              <div className="flex gap-2">
+                <Input
+                  type={showSmtpPassword ? "text" : "password"}
+                  value={smtpPassword}
+                  onChange={(e) => setSmtpPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                >
+                  {showSmtpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Koneksi</Label>
+                <Select value={smtpSecure} onValueChange={setSmtpSecure}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="false">STARTTLS (biasanya port 587)</SelectItem>
+                    <SelectItem value="true">TLS/SSL (biasanya port 465)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Alamat Pengirim</Label>
+                <Input
+                  value={smtpFrom}
+                  onChange={(e) => setSmtpFrom(e.target.value)}
+                  placeholder="CloudMail <no-reply@example.com>"
+                />
+              </div>
+            </div>
+            <Button onClick={handleSaveSmtp} disabled={savingSmtp}>
+              {savingSmtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Simpan SMTP
+            </Button>
           </div>
         </CardContent>
       </Card>

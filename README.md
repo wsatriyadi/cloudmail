@@ -14,7 +14,7 @@ Self-hosted temporary email platform built with Next.js 15 and Cloudflare Email 
 - **Custom Aliases** — Create personalized email aliases with optional expiration
 - **Email Reply** — Reply to received emails via configured SMTP
 - **Real-time Inbox** — Live email updates via Server-Sent Events (SSE)
-- **90-Day Email Retention** — Automatic cleanup of old emails with configurable cron job
+- **Configurable Email Retention** — Automatic cleanup of old emails (default 30 days, configurable in Settings)
 - **Webhook Support** — Forward incoming emails to external endpoints
 - **QR Code Sharing** — Generate QR codes for email addresses
 
@@ -45,7 +45,7 @@ Self-hosted temporary email platform built with Next.js 15 and Cloudflare Email 
 |-------|-----------|
 | Framework | Next.js 15 (App Router, Turbopack) |
 | Frontend | React 19, Tailwind CSS 4, shadcn/ui, Recharts |
-| Database | SQLite via better-sqlite3 + Drizzle ORM |
+| Database | PostgreSQL via postgres-js + Drizzle ORM |
 | Auth | NextAuth v5 (Credentials, JWT) |
 | Email Worker | Cloudflare Workers (postal-mime) |
 | AI | OpenAI SDK (configurable endpoint/model) |
@@ -68,7 +68,7 @@ Self-hosted temporary email platform built with Next.js 15 and Cloudflare Email 
                                             │
                                             ▼
                                   ┌─────────────────────┐
-                                  │  SQLite Database     │
+                                  │  PostgreSQL          │
                                   │  (Drizzle ORM)       │
                                   └─────────┬───────────┘
                                             │
@@ -83,7 +83,8 @@ Self-hosted temporary email platform built with Next.js 15 and Cloudflare Email 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
+- PostgreSQL 14+
 - npm or pnpm
 - Cloudflare account (for email workers)
 
@@ -106,8 +107,8 @@ cp .env.example .env
 Edit `.env` with your values:
 
 ```env
-# Database — path to SQLite file (auto-created)
-DATABASE_PATH=./data/cloudmail.db
+# Database — PostgreSQL connection string
+DATABASE_URL=postgres://cloudmail:cloudmail@localhost:5432/cloudmail
 
 # Auth — generate with: openssl rand -base64 32
 AUTH_SECRET=your-secret-here
@@ -119,11 +120,26 @@ ADMIN_PASSWORD=changeme
 # Worker Communication — generate with: openssl rand -hex 32
 WORKER_INGEST_SECRET=your-worker-secret-here
 
+# Cron cleanup — generate with: openssl rand -hex 32
+# Kosongkan untuk mewajibkan session admin.
+CRON_SECRET=your-cron-secret-here
+
 # App URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+> `.env.local` juga harus berisi `DATABASE_URL`; mengganti `DATABASE_PATH` saja tidak cukup.
+
 ### Database Setup
+
+Buat database PostgreSQL terlebih dahulu (contoh):
+
+```bash
+createdb cloudmail
+# atau: psql -c "CREATE DATABASE cloudmail;"
+```
+
+Lalu push skema dan seed:
 
 ```bash
 # Push schema to database
@@ -165,7 +181,7 @@ npx wrangler deploy
 
 ## API Reference
 
-All API routes require an API key passed via `X-API-Key` header (except internal routes).
+All API routes require an API key passed via `Authorization: Bearer <key>` header (except internal routes). `X-API-Key` masih diterima untuk kompatibilitas, tetapi Bearer adalah format resmi.
 
 ### Generate Identity
 
@@ -213,7 +229,7 @@ Content-Type: application/json
 }
 ```
 
-`gender` wajib `male` atau `female`; isi minimal salah satu dari `nama_depan` / `nama_belakang`. Duplikat dicek per gender tanpa membedakan huruf besar/kecil. Tabel `nama_depan`, `nama_belakang`, dan `identitas` dibuat oleh `scripts/migrate.js`.
+`gender` wajib `male` atau `female`; isi minimal salah satu dari `nama_depan` / `nama_belakang`. Duplikat dicek per gender tanpa membedakan huruf besar/kecil. Tabel `nama_depan`, `nama_belakang`, dan `identitas` dibuat oleh `npm run db:push` (Drizzle, PostgreSQL).
 
 ### List Inbox
 
@@ -295,53 +311,44 @@ npm run seed           # Seed admin user + defaults
 
 ### Schema Migrations (existing databases)
 
-`scripts/migrate.js` creates missing tables and indexes (`CREATE ... IF NOT EXISTS`) and is safe to rerun:
+For a fresh or existing PostgreSQL database, push the current schema:
 
 ```bash
-DATABASE_PATH=./data/cloudmail.db node scripts/migrate.js
+npm run db:push
 ```
 
-#### Moving email bodies to `email_bodies`
+#### Migrating from SQLite (legacy)
 
-Email bodies (`text_body`, `html_body`, `raw_headers`) live in the `email_bodies` table so list queries on `emails` never read large bodies. Databases created before this change still hold bodies in `emails` and must be migrated in two steps:
+Old installations used SQLite. The runtime no longer reads `DATABASE_PATH`; migrate data to PostgreSQL once:
 
-1. **Backfill** — can run while the app is serving traffic. Each write transaction is capped at `TX_BUDGET_MS` (default 300 ms) so ingest and API requests are not blocked. Stop and rerun any time; it resumes where it left off.
-
-   ```bash
-   DATABASE_PATH=./data/cloudmail.db node scripts/split-email-bodies.js
-   ```
-
-2. **Finalize** — stop the app first. Rebuilds `emails` without the body columns, adds `idx_emails_is_read`, then `VACUUM`s to reclaim space. Refuses to run while any email still has a body in `emails`. `VACUUM` needs free disk space roughly equal to the new database size.
+1. Create the PostgreSQL schema: `DATABASE_URL=... npx drizzle-kit push`
+2. Stop the app and ingest worker so no new writes occur.
+3. Copy the data:
 
    ```bash
-   pm2 stop cloudmail
-   DATABASE_PATH=./data/cloudmail.db node scripts/split-email-bodies.js --finalize
-   npm run build && pm2 start cloudmail
+   DATABASE_URL=postgres://user:pass@localhost:5432/cloudmail \
+     SQLITE_PATH=./data/cloudmail.db \
+     node scripts/migrate-sqlite-to-postgres.js
    ```
 
-The app code expects the finalized schema; deploy it together with step 2.
+4. Verify row counts, then set `DATABASE_URL` in `.env` and `.env.local`.
+
+`scripts/migrate.js` and `scripts/split-email-bodies.js` are legacy SQLite helpers and are not used by the PostgreSQL runtime.
 
 ## Deployment
 
 ### With Docker (Recommended)
 
-```dockerfile
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+The repository includes a multi-stage `Dockerfile` (Node 22, standalone output) and `docker-compose.yml`.
 
-FROM node:18-alpine AS runner
-WORKDIR /app
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/public ./public
-EXPOSE 3000
-CMD ["npm", "start"]
+1. Isi `.env` dengan `DATABASE_URL` yang menunjuk ke PostgreSQL yang dapat diakses dari container.
+2. Jalankan:
+
+```bash
+docker compose up -d --build
 ```
+
+`docker-compose.yml` memasang volume `./data:/app/data` untuk menyimpan attachment.
 
 ### With PM2
 

@@ -1,33 +1,25 @@
-import { db } from "@/lib/db";
-import { emails } from "@/lib/db/schema";
-import { lt } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { authorizeCron } from "@/lib/cron-auth";
+import { runEmailCleanup } from "@/lib/cleanup";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Cleanup old emails (90-day retention)
- * DELETE /api/cron/cleanup-emails
- * 
- * Run this daily via cron or PM2 scheduled job
+ * Cleanup email berdasarkan settings.email_retention_days (satu sumber dengan
+ * endpoint internal/cron/cleanup). Butuh CRON_SECRET atau session admin.
  */
-export async function DELETE() {
+async function handle(request: Request) {
+  const denied = await authorizeCron(request);
+  if (denied) return denied;
+
   try {
-    // Calculate 90 days ago timestamp
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    // Delete emails older than 90 days
-    const deleted = await db
-      .delete(emails)
-      .where(lt(emails.receivedAt, ninetyDaysAgo))
-      .returning({ id: emails.id });
-
+    const result = await runEmailCleanup();
     return NextResponse.json({
       success: true,
-      deletedCount: deleted.length,
-      cutoffDate: ninetyDaysAgo.toISOString(),
-      message: `Deleted ${deleted.length} emails older than 90 days`,
+      deletedCount: result.deleted,
+      retentionDays: result.retentionDays,
+      cutoffDate: result.cutoffDate,
+      message: result.message,
     });
   } catch (error) {
     console.error("Email cleanup error:", error);
@@ -41,7 +33,15 @@ export async function DELETE() {
   }
 }
 
-// Also support GET for manual trigger from browser
-export async function GET() {
-  return DELETE();
+export async function DELETE(request: Request) {
+  return handle(request);
+}
+
+// GET/POST untuk manual trigger (cron atau admin yang login).
+export async function GET(request: Request) {
+  return handle(request);
+}
+
+export async function POST(request: Request) {
+  return handle(request);
 }

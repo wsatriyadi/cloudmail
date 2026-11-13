@@ -56,7 +56,7 @@ async function callApi(
       method,
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": CLOUDMAIL_API_KEY,
+        Authorization: `Bearer ${CLOUDMAIL_API_KEY}`,
       },
     };
     if (body) {

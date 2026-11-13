@@ -16,12 +16,19 @@ function sha256(data: string): string {
 export async function authenticateApiRequest(
   request: Request
 ): Promise<AuthResult> {
+  // Header utama: Authorization: Bearer <key>. x-api-key tetap diterima
+  // untuk kompatibilitas integrasi lama (MCP/docs versi sebelumnya).
   const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const legacyHeader = request.headers.get("x-api-key");
+
+  const key = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : legacyHeader?.trim();
+
+  if (!key) {
     return { error: "API key diperlukan. Gunakan header: Authorization: Bearer <key>", status: 401 };
   }
 
-  const key = authHeader.slice(7);
   const keyHash = sha256(key);
 
   const apiKey = (await db

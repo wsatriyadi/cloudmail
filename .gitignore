@@ -11,6 +11,53 @@ next-env.d.ts
 # Agent artifacts
 .omo/
 
+# Local deploy/debug artifacts (jangan commit kredensial atau output sementara)
+*.log
+build*.txt
+plink-*.txt
+remote-out.txt
+cloudmail-deploy*
+cloudmail-*.tar.gz
+cloudmail-*.zip
+README.md.backup
+temp_key*
+*.pem
+*.key
+
+# Root deployment/debug artifacts (tetap ada di disk, tidak masuk git)
+/COMPLETE-IMPROVEMENTS-SUMMARY.md
+/DEBUG-DEPLOYMENT.md
+/DEPLOY-*.md
+/DEPLOYMENT*.md
+/DIAGNOSTIC.md
+/FORCE-REBUILD.md
+/MCP-IMPLEMENTATION-SUMMARY.md
+/PAGINATION-DEPLOYMENT.md
+/QUICK-FIX.md
+/RUN-DEPLOY.md
+/backup-*.sh
+/check-deployment.sh
+/checkbuild.sh
+/deploy-*.sh
+/diag*.sh
+/extract.sh
+/final-verify.sh
+/fullbuild.sh
+/git-*.sh
+/install-cron.sh
+/probe.sh
+/rebuild*.sh
+/redeploy*.sh
+/remote-cmds.sh
+/restore-data.sh
+/setup-sudoers.sh
+/test-*.sh
+/*.exp
+/cache-hostkey.ps1
+/ssh-connect.ps1
+/upload-pscp.ps1
+/y-input.txt
+
 # Flutter build artifacts
 mobile/android/build/
 mobile/build/

@@ -27,8 +27,13 @@ export async function verifyWorkerSignature(
     .update(body + timestamp)
     .digest("hex");
 
-  return crypto.timingSafeEqual(
-    Buffer.from(signature, "hex"),
-    Buffer.from(expectedSignature, "hex")
-  );
+  // timingSafeEqual melempar error jika panjang buffer berbeda. Validasi
+  // format hex 64 karakter lebih dulu agar signature rusak hanya -> false.
+  if (!/^[0-9a-f]{64}$/i.test(signature)) return false;
+
+  const actual = Buffer.from(signature, "hex");
+  const expected = Buffer.from(expectedSignature, "hex");
+  if (actual.length !== expected.length) return false;
+
+  return crypto.timingSafeEqual(actual, expected);
 }

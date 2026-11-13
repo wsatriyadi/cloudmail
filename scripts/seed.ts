@@ -35,6 +35,12 @@ async function seed() {
     logo_path: "",
     favicon_path: "",
     email_retention_days: "30",
+    smtp_host: "",
+    smtp_port: "587",
+    smtp_user: "",
+    smtp_password: "",
+    smtp_secure: "false",
+    smtp_from: "",
     worker_secret:
       process.env.WORKER_INGEST_SECRET || crypto.randomBytes(32).toString("hex"),
     webhook_url: "",

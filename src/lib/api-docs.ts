@@ -311,7 +311,7 @@ export const apiEndpoints: ApiEndpoint[] = [
     path: "/api/reply",
     title: "Reply to Email",
     description:
-      "Siapkan balasan email. Memerlukan konfigurasi SMTP di dashboard. Response mengembalikan detail SMTP yang dikonfigurasi.",
+      "Kirim balasan email melalui SMTP yang dikonfigurasi di dashboard. Response mengembalikan messageId dan status pengiriman.",
     auth: "API Key (permission apa saja)",
     request: {
       headers: {
@@ -329,24 +329,15 @@ export const apiEndpoints: ApiEndpoint[] = [
     },
     response: {
       success: `{
-  "status": "prepared",
-  "message": "Email siap dikirim. Konfigurasi SMTP diperlukan untuk pengiriman aktual.",
-  "data": {
-    "from": "user@yourdomain.com",
-    "to": "sender@example.com",
-    "subject": "Re: Welcome!",
-    "body": "Reply content here",
-    "isHtml": false,
-    "replyContext": {
-      "originalFrom": "sender@example.com",
-      "originalSubject": "Welcome!",
-      "originalDate": 1704067200
-    },
-    "smtp": {
-      "host": "smtp.example.com",
-      "port": 587,
-      "user": "user@yourdomain.com"
-    }
+  "status": "sent",
+  "message": "Email berhasil dikirim.",
+  "messageId": "<message-id@smtp.example.com>",
+  "accepted": ["sender@example.com"],
+  "rejected": [],
+  "replyContext": {
+    "originalFrom": "sender@example.com",
+    "originalSubject": "Welcome!",
+    "originalDate": "2025-01-01T00:00:00.000Z"
   }
 }`,
       error: `{

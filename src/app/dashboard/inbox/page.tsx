@@ -3,6 +3,7 @@ import { emails, domains } from "@/lib/db/schema";
 import { desc, sql, count } from "drizzle-orm";
 import { emailScopeCondition } from "@/lib/address-access";
 import { requireUser } from "@/lib/authz";
+import { describeRetention, getRetentionDays } from "@/lib/retention";
 import { InboxTable } from "@/components/inbox/inbox-table";
 
 export default async function InboxPage({
@@ -17,6 +18,7 @@ export default async function InboxPage({
 
   const user = await requireUser();
   const scope = emailScopeCondition(user.id, user.role);
+  const retentionDays = await getRetentionDays();
 
   const allDomains = await db
     .select({ id: domains.id, domain: domains.domain })
@@ -49,6 +51,7 @@ export default async function InboxPage({
     })
     .from(emails)
     .where(scope)
+    .orderBy(desc(emails.receivedAt))
     .limit(pageSize)
     .offset(offset);
 
@@ -57,7 +60,8 @@ export default async function InboxPage({
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Kotak Masuk</h1>
         <p className="text-muted-foreground">
-          Semua email yang diterima di seluruh domain. Email otomatis terhapus setelah 90 hari.
+          Semua email yang diterima di seluruh domain. Email terbaru muncul paling atas.
+          Email otomatis terhapus setelah {describeRetention(retentionDays)}.
         </p>
       </div>
       <InboxTable

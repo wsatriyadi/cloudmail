@@ -103,7 +103,7 @@ function SwaggerEndpointCard({ endpoint }: { endpoint: ApiEndpoint }) {
       };
 
       if (apiKey) {
-        headers["x-api-key"] = apiKey;
+        headers["Authorization"] = `Bearer ${apiKey}`;
       }
 
       const options: RequestInit = {
