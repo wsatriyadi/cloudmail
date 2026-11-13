@@ -36,7 +36,7 @@ export async function emailScopeFor(userId: string, role: string): Promise<strin
   return addressesOwnedBy(userId);
 }
 
-// SQL subquery avoids SQLite's bind-variable limit when a customer owns many addresses.
+// SQL subquery avoids a large parameter list when a customer owns many addresses.
 export function emailScopeCondition(userId: string, role: string) {
   if (role === "admin") return undefined;
   return sql`${emails.toAddress} IN (

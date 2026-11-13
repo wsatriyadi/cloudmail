@@ -8,6 +8,13 @@ data/
 *.tsbuildinfo
 next-env.d.ts
 
+# Legacy SQLite (CloudMail sekarang hanya PostgreSQL)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
 # Agent artifacts
 .omo/
 

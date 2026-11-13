@@ -128,7 +128,7 @@ CRON_SECRET=your-cron-secret-here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-> `.env.local` juga harus berisi `DATABASE_URL`; mengganti `DATABASE_PATH` saja tidak cukup.
+> `.env.local` juga harus berisi `DATABASE_URL` yang sama. CloudMail hanya mendukung PostgreSQL; SQLite tidak lagi digunakan.
 
 ### Database Setup
 
@@ -317,23 +317,7 @@ For a fresh or existing PostgreSQL database, push the current schema:
 npm run db:push
 ```
 
-#### Migrating from SQLite (legacy)
-
-Old installations used SQLite. The runtime no longer reads `DATABASE_PATH`; migrate data to PostgreSQL once:
-
-1. Create the PostgreSQL schema: `DATABASE_URL=... npx drizzle-kit push`
-2. Stop the app and ingest worker so no new writes occur.
-3. Copy the data:
-
-   ```bash
-   DATABASE_URL=postgres://user:pass@localhost:5432/cloudmail \
-     SQLITE_PATH=./data/cloudmail.db \
-     node scripts/migrate-sqlite-to-postgres.js
-   ```
-
-4. Verify row counts, then set `DATABASE_URL` in `.env` and `.env.local`.
-
-`scripts/migrate.js` and `scripts/split-email-bodies.js` are legacy SQLite helpers and are not used by the PostgreSQL runtime.
+CloudMail hanya mendukung PostgreSQL. Tidak ada lagi fallback SQLite atau file `data/cloudmail.db`; seluruh data email, body, attachment, dan metadata disimpan di database PostgreSQL yang ditunjuk `DATABASE_URL`.
 
 ## Deployment
 

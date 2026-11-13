@@ -7,7 +7,7 @@ const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error(
     "DATABASE_URL wajib diisi (PostgreSQL connection string). " +
-      "Ganti DATABASE_PATH SQLite dengan DATABASE_URL sebelum menjalankan aplikasi."
+      "CloudMail hanya mendukung PostgreSQL; isi DATABASE_URL sebelum menjalankan aplikasi."
   );
 }
 
