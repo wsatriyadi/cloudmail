@@ -13,6 +13,9 @@ fi
 
 : "${CRON_SECRET:?CRON_SECRET belum diisi di .env}"
 
+# Jangan pakai PORT dari .env: aplikasi production berjalan di 8090 lewat PM2.
+PORT_APP="${CLEANUP_PORT:-8090}"
+
 curl -fsS -X POST \
   -H "Authorization: Bearer ${CRON_SECRET}" \
-  "http://127.0.0.1:${PORT:-8090}/api/cron/cleanup-emails"
+  "http://127.0.0.1:${PORT_APP}/api/cron/cleanup-emails"
