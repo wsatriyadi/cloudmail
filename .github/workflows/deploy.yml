@@ -1,0 +1,47 @@
+name: Deploy VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_migration:
+        description: "Jalankan migrasi domain approval"
+        type: boolean
+        default: true
+
+concurrency:
+  group: vps-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install sshpass
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+
+      - name: Deploy over SSH
+        env:
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+          RUN_MIGRATION: ${{ inputs.run_migration }}
+        run: |
+          sshpass -p "$VPS_PASSWORD" ssh \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=20 \
+            root@172.93.212.253 "RUN_MIGRATION='$RUN_MIGRATION' bash -s" <<'EOS'
+          set -e
+          cd /var/www/cloudmail
+          git pull --ff-only
+          docker compose build
+          if [ "$RUN_MIGRATION" = "true" ]; then
+            docker compose run --rm app node scripts/migrate-domain-approval.mjs
+          fi
+          docker compose up -d
+          docker network connect bikinlagu_default cloudmail-app 2>/dev/null || true
+          sleep 4
+          docker logs --tail 15 cloudmail-app
+          curl -s -o /dev/null -w "login HTTP %{http_code}\n" http://localhost:3000/login || true
+          EOS
