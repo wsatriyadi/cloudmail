@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { attachments, emails } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { sessionUser } from "@/lib/authz";
-import { emailScopeFor } from "@/lib/address-access";
+import { ownEmailScopeFor } from "@/lib/address-access";
 import { getEmailWithBody } from "@/lib/email-body";
 
 export const dynamic = "force-dynamic";
@@ -28,9 +28,8 @@ export async function GET(
     return NextResponse.json({ error: "Email tidak ditemukan" }, { status: 404 });
   }
 
-  const scope = await emailScopeFor(user.id, user.role);
+  const scope = await ownEmailScopeFor(user.id);
   if (
-    scope !== null &&
     !scope.some(
       (address) => address.toLowerCase() === email.toAddress.toLowerCase()
     )

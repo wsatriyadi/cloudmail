@@ -86,7 +86,7 @@ export async function PATCH(request: Request) {
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
     const before = (await db.select().from(apiKeys).where(eq(apiKeys.id, id)))[0];
     if (!before) return NextResponse.json({ error: "API key tidak ditemukan" }, { status: 404 });
-    if (session.role !== "admin" && before.createdById !== session.id) {
+    if (before.createdById !== session.id) {
       return NextResponse.json({ error: "Tidak berhak mengubah API key ini" }, { status: 403 });
     }
 
@@ -151,7 +151,7 @@ export async function DELETE(request: Request) {
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
     const key = (await db.select().from(apiKeys).where(eq(apiKeys.id, id)))[0];
     if (!key) return NextResponse.json({ error: "API key tidak ditemukan" }, { status: 404 });
-    if (session.role !== "admin" && key.createdById !== session.id) {
+    if (key.createdById !== session.id) {
       return NextResponse.json({ error: "Tidak berhak menghapus API key ini" }, { status: 403 });
     }
     await db.delete(apiKeys).where(eq(apiKeys.id, id));

@@ -3,7 +3,7 @@ import { emails, attachments } from "@/lib/db/schema";
 import { getEmailWithBody } from "@/lib/email-body";
 import { eq, and } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import { emailScopeCondition } from "@/lib/address-access";
+import { ownEmailScopeCondition } from "@/lib/address-access";
 import { requireUser } from "@/lib/authz";
 import { EmailViewer } from "@/components/inbox/email-viewer";
 
@@ -17,8 +17,8 @@ export default async function EmailDetailPage({
 
   const email = await getEmailWithBody(id);
   if (!email) notFound();
-  const scope = emailScopeCondition(user.id, user.role);
-  if (scope && !(await db.select({ id: emails.id }).from(emails).where(and(eq(emails.id, id), scope)))[0]) notFound();
+  const scope = ownEmailScopeCondition(user.id);
+  if (!(await db.select({ id: emails.id }).from(emails).where(and(eq(emails.id, id), scope)))[0]) notFound();
 
 
   if (!email.isRead) {

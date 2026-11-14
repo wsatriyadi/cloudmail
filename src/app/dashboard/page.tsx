@@ -8,6 +8,8 @@ import { Mail, Globe, Key, Users, TrendingUp, ArrowUpRight, AtSign, Activity, Pl
 import { RecentEmails } from "@/components/dashboard/recent-emails";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { describeRetention, getRetentionDays } from "@/lib/retention";
+import { ownEmailScopeCondition } from "@/lib/address-access";
+import { requireMenuAccess } from "@/lib/authz";
 import Link from "next/link";
 
 async function getStats() {
@@ -70,7 +72,7 @@ async function getStats() {
   };
 }
 
-async function getRecentEmails() {
+async function getRecentEmails(userId: string) {
   return db
     .select({
       id: emails.id,
@@ -83,6 +85,7 @@ async function getRecentEmails() {
       isRead: emails.isRead,
     })
     .from(emails)
+    .where(ownEmailScopeCondition(userId))
     .orderBy(desc(emails.receivedAt))
     .limit(10)
 }
@@ -117,8 +120,9 @@ async function getActivityData() {
 }
 
 export default async function DashboardPage() {
+  const user = await requireMenuAccess("/dashboard");
   const stats = await getStats();
-  const recentEmails = await getRecentEmails();
+  const recentEmails = await getRecentEmails(user.id);
   const activityData = await getActivityData();
   const retentionDays = await getRetentionDays();
 

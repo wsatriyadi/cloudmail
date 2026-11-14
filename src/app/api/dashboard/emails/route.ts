@@ -5,7 +5,7 @@ import { and, count, desc, ilike, inArray, or, sql } from "drizzle-orm";
 import fs from "fs/promises";
 import path from "path";
 import { sessionUser } from "@/lib/authz";
-import { emailScopeCondition } from "@/lib/address-access";
+import { ownEmailScopeCondition } from "@/lib/address-access";
 import { getClientIP, logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
@@ -30,17 +30,16 @@ export async function GET(request: Request) {
   const search = url.searchParams.get("search")?.trim();
   const domain = url.searchParams.get("domain")?.trim();
 
-  const conditions = [emailScopeCondition(user.id, user.role)];
+  const conditions = [ownEmailScopeCondition(user.id)];
 
   if (search) {
     const pattern = `%${search}%`;
-    conditions.push(
-      or(
-        ilike(emails.toAddress, pattern),
-        ilike(emails.fromAddress, pattern),
-        ilike(emails.subject, pattern)
-      )
+    const searchClause = or(
+      ilike(emails.toAddress, pattern),
+      ilike(emails.fromAddress, pattern),
+      ilike(emails.subject, pattern)
     );
+    if (searchClause) conditions.push(searchClause);
   }
 
   if (domain && domain !== "all") {
@@ -115,7 +114,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
     }
 
-    const scope = emailScopeCondition(user.id, user.role);
+    const scope = ownEmailScopeCondition(user.id);
     const allowed = await db
       .select({ id: emails.id })
       .from(emails)

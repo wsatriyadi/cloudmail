@@ -25,9 +25,8 @@ async function getApiKeys(createdById: string | null) {
 
 export default async function ApiKeysPage() {
   const user = await requireMenuAccess("/dashboard/api-keys");
-  // Pelanggan/viewer hanya melihat API key miliknya sendiri; admin melihat semua.
-  const ownerId = user.role === "admin" ? null : user.id;
-  const keys = await getApiKeys(ownerId);
+  // Setiap user (termasuk admin) hanya melihat API key miliknya sendiri.
+  const keys = await getApiKeys(user.id);
   // Batas pelanggan berlaku akumulatif untuk semua key aktif miliknya.
   const totalCap = user.role === "pelanggan" ? CUSTOMER_TOTAL_RPM : null;
   const usedRpm = keys.filter((key) => key.isActive).reduce((sum, key) => sum + key.rateLimit, 0);

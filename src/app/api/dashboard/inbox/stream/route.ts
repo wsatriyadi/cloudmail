@@ -3,7 +3,7 @@ import { emails } from "@/lib/db/schema";
 import { and, desc, gt } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { sessionUser } from "@/lib/authz";
-import { emailScopeCondition } from "@/lib/address-access";
+import { ownEmailScopeCondition } from "@/lib/address-access";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,8 @@ export async function GET(request: Request) {
   const since = url.searchParams.get("since"); // ISO timestamp
   const sinceDate = since ? new Date(since) : null;
 
-  // Batasi stream ke email milik user (admin melihat semua).
-  const scope = emailScopeCondition(user.id, user.role);
+  // Stream hanya email milik user, termasuk admin.
+  const scope = ownEmailScopeCondition(user.id);
   const where =
     sinceDate && !Number.isNaN(sinceDate.getTime())
       ? and(scope, gt(emails.receivedAt, sinceDate))

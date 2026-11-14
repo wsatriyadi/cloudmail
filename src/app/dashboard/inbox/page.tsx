@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { emails, domains } from "@/lib/db/schema";
 import { desc, sql, count } from "drizzle-orm";
-import { emailScopeCondition } from "@/lib/address-access";
+import { ownEmailScopeCondition } from "@/lib/address-access";
 import { requireMenuAccess } from "@/lib/authz";
 import { usableDomainFilter } from "@/lib/domain-access";
 import { describeRetention, getRetentionDays } from "@/lib/retention";
@@ -18,7 +18,7 @@ export default async function InboxPage({
   const offset = (currentPage - 1) * pageSize;
 
   const user = await requireMenuAccess("/dashboard/inbox");
-  const scope = emailScopeCondition(user.id, user.role);
+  const scope = ownEmailScopeCondition(user.id);
   const retentionDays = await getRetentionDays();
 
   const allDomains = await db

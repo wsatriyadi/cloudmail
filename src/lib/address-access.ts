@@ -39,12 +39,22 @@ export async function emailScopeFor(userId: string, role: string): Promise<strin
 // SQL subquery avoids a large parameter list when a customer owns many addresses.
 export function emailScopeCondition(userId: string, role: string) {
   if (role === "admin") return undefined;
+  return ownEmailScopeCondition(userId);
+}
+
+// Inbox selalu terbatas pada alamat milik user, termasuk admin. Admin tidak
+// boleh melihat isi kotak masuk user lain.
+export function ownEmailScopeCondition(userId: string) {
   return sql`${emails.toAddress} IN (
     SELECT address FROM aliases WHERE created_by_id = ${userId}
     UNION SELECT address FROM aliases WHERE api_key_id IN (SELECT id FROM api_keys WHERE created_by_id = ${userId})
     UNION SELECT address FROM identitas WHERE user_id = ${userId}
     UNION SELECT address FROM identitas WHERE api_key_id IN (SELECT id FROM api_keys WHERE created_by_id = ${userId})
   )`;
+}
+
+export async function ownEmailScopeFor(userId: string): Promise<string[]> {
+  return addressesOwnedBy(userId);
 }
 
 // null means API key owner is not a customer and retains unrestricted API access.
