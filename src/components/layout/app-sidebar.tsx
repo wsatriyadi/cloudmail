@@ -23,15 +23,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { canAccessMenu } from "@/lib/roles";
 
-// Menu ditampilkan sesuai role. Pelanggan tidak melihat Domain, Pengguna, dan
-// Log Aktivitas (pengaturan milik sendiri tetap ada).
-const ADMIN_ONLY: Record<string, true> = {
-  "/dashboard/domains": true,
-  "/dashboard/users": true,
-  "/dashboard/audit-log": true,
-};
-
+// Menu ditampilkan sesuai role yang diizinkan membuka halaman tersebut.
 const navGroups = [
   {
     label: "Ikhtisar",
@@ -63,9 +57,11 @@ const navGroups = [
 ];
 
 function visibleGroups(role: string | undefined) {
-  if (role === "admin") return navGroups;
   return navGroups
-    .map((group) => ({ ...group, items: group.items.filter((item) => !ADMIN_ONLY[item.href]) }))
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessMenu(role, item.href)),
+    }))
     .filter((group) => group.items.length > 0);
 }
 
@@ -89,7 +85,7 @@ function SidebarBody({ onNavigate, role }: { onNavigate?: () => void; role?: str
       </div>
 
       <nav aria-label="Navigasi utama" className="flex-1 overflow-y-auto px-3 py-4">
-        {navGroups.map((group) => (
+        {groups.map((group) => (
           <div key={group.label} className="mb-5 last:mb-0">
             <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               {group.label}

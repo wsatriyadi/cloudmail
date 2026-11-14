@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { requireUser } from "@/lib/authz";
+import { requireMenuAccess, CUSTOMER_TOTAL_RPM } from "@/lib/authz";
 import { ApiKeyTable } from "@/components/api-keys/api-key-table";
 
 async function getApiKeys(createdById: string | null) {
@@ -24,10 +24,13 @@ async function getApiKeys(createdById: string | null) {
 }
 
 export default async function ApiKeysPage() {
-  const user = await requireUser();
+  const user = await requireMenuAccess("/dashboard/api-keys");
   // Pelanggan/viewer hanya melihat API key miliknya sendiri; admin melihat semua.
   const ownerId = user.role === "admin" ? null : user.id;
   const keys = await getApiKeys(ownerId);
+  // Batas pelanggan berlaku akumulatif untuk semua key aktif miliknya.
+  const totalCap = user.role === "pelanggan" ? CUSTOMER_TOTAL_RPM : null;
+  const usedRpm = keys.filter((key) => key.isActive).reduce((sum, key) => sum + key.rateLimit, 0);
 
   return (
     <div className="space-y-6">
@@ -37,7 +40,7 @@ export default async function ApiKeysPage() {
           Kelola kunci API untuk akses programatis.
         </p>
       </div>
-      <ApiKeyTable apiKeys={keys} />
+      <ApiKeyTable apiKeys={keys} totalCap={totalCap} usedRpm={usedRpm} />
     </div>
   );
 }

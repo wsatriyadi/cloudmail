@@ -1,19 +1,20 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/config";
+import { canAccessMenu, normaliseRole, type Role } from "@/lib/roles";
 
 // Satu sumber kebenaran untuk hak akses. Semua route dan halaman dashboard
 // memakai modul ini, bukan memeriksa sesi sendiri-sendiri.
-export type Role = "admin" | "pelanggan" | "viewer" | "api-only";
-
-export const ROLES: Role[] = ["admin", "pelanggan", "viewer", "api-only"];
-
-// Batas rate limit yang boleh dibuat per role. null = tanpa batas khusus.
-export const MAX_RATE_LIMIT: Record<Role, number | null> = {
-  admin: null,
-  pelanggan: 500,
-  viewer: null,
-  "api-only": null,
-};
+export {
+  ROLES,
+  MAX_RATE_LIMIT,
+  CUSTOMER_TOTAL_RPM,
+  ROLE_MENUS,
+  normaliseRole,
+  canAccessMenu,
+  rateLimitCapFor,
+  canManageDomains,
+} from "@/lib/roles";
+export type { Role } from "@/lib/roles";
 
 export interface SessionUser {
   id: string;
@@ -31,15 +32,6 @@ export function ownsAllData(user: SessionUser): boolean {
   return isAdmin(user);
 }
 
-// Role tidak dikenal diperlakukan sebagai hak paling rendah.
-export function normaliseRole(value: string | null | undefined): Role {
-  return ROLES.includes(value as Role) ? (value as Role) : "api-only";
-}
-
-export function rateLimitCapFor(role: Role): number | null {
-  return MAX_RATE_LIMIT[role];
-}
-
 // Dipakai di halaman dashboard (server component).
 export async function requireUser(): Promise<SessionUser> {
   const session = await auth();
@@ -50,6 +42,13 @@ export async function requireUser(): Promise<SessionUser> {
     name: session.user.name ?? "",
     role: normaliseRole(session.user.role),
   };
+}
+
+// Halaman di luar menu role akan dialihkan ke beranda dashboard.
+export async function requireMenuAccess(href: string): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canAccessMenu(user.role, href)) redirect("/dashboard");
+  return user;
 }
 
 export async function requireAdmin(): Promise<SessionUser> {

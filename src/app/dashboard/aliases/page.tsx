@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { aliases, domains } from "@/lib/db/schema";
-import { desc, sql, eq } from "drizzle-orm";
-import { requireUser } from "@/lib/authz";
+import { desc, sql, eq, and } from "drizzle-orm";
+import { requireMenuAccess } from "@/lib/authz";
 import { AliasTable } from "@/components/aliases/alias-table";
 
 async function getAliases(userId: string | null) {
@@ -25,11 +25,12 @@ async function getAliases(userId: string | null) {
 async function getDomains() {
   return db
     .select({ id: domains.id, domain: domains.domain })
-    .from(domains);
+    .from(domains)
+    .where(and(eq(domains.isActive, true), eq(domains.status, "approved")));
 }
 
 export default async function AliasesPage() {
-  const user = await requireUser();
+  const user = await requireMenuAccess("/dashboard/aliases");
   const ownerId = user.role === "admin" ? null : user.id;
   const aliasList = await getAliases(ownerId);
   const domainList = await getDomains();

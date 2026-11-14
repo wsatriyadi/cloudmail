@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
-import { apiKeys, rateLimitEntries } from "@/lib/db/schema";
+import { apiKeys, rateLimitEntries, users } from "@/lib/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import crypto from "crypto";
+import { normaliseRole, rateLimitCapFor } from "@/lib/roles";
 
 export interface AuthResult {
   error?: string;
@@ -58,10 +59,23 @@ export async function authenticateApiRequest(
     }
   }
 
-  // Check rate limit
-  const allowed = await checkRateLimit(apiKey.id, apiKey.rateLimit);
-  if (!allowed) {
-    return { error: "Rate limit terlampaui. Coba lagi nanti.", status: 429 };
+  // Batas role berlaku sebagai akumulasi semua API key milik pemilik key
+  // (pelanggan: 1000 RPM total, bukan 1000 per key).
+  const owner = (await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, apiKey.createdById)))[0];
+  const userCap = owner ? rateLimitCapFor(normaliseRole(owner.role)) : null;
+
+  const limit = await checkRateLimit(apiKey, userCap);
+  if (!limit.allowed) {
+    return {
+      error:
+        limit.scope === "user"
+          ? `Rate limit akun terlampaui: maksimum ${userCap} permintaan/menit total untuk semua API key. Coba lagi nanti.`
+          : "Rate limit terlampaui. Coba lagi nanti.",
+      status: 429,
+    };
   }
 
   // Update last used
@@ -72,30 +86,56 @@ export async function authenticateApiRequest(
   return { apiKey };
 }
 
-async function checkRateLimit(apiKeyId: string, limit: number): Promise<boolean> {
+async function checkRateLimit(
+  apiKey: typeof apiKeys.$inferSelect,
+  userCap: number | null
+): Promise<{ allowed: boolean; scope: "key" | "user" }> {
   const now = Math.floor(Date.now() / 1000);
   const currentWindow = Math.floor(now / 60);
 
   await db.execute(
     sql`INSERT INTO rate_limit_entries (api_key_id, window_start, request_count)
-        VALUES (${apiKeyId}, ${currentWindow}, 1)
+        VALUES (${apiKey.id}, ${currentWindow}, 1)
         ON CONFLICT (api_key_id, window_start)
         DO UPDATE SET request_count = rate_limit_entries.request_count + 1`
   );
 
-  const result = (await db
+  const keyResult = (await db
     .select({
       total: sql<number>`COALESCE(SUM(request_count), 0)`,
     })
     .from(rateLimitEntries)
     .where(
       and(
-        eq(rateLimitEntries.apiKeyId, apiKeyId),
+        eq(rateLimitEntries.apiKeyId, apiKey.id),
         gte(rateLimitEntries.windowStart, currentWindow - 1)
       )
     ))[0];
 
-  return Number(result?.total ?? 0) <= limit;
+  if (Number(keyResult?.total ?? 0) > apiKey.rateLimit) {
+    return { allowed: false, scope: "key" };
+  }
+
+  if (userCap === null) return { allowed: true, scope: "key" };
+
+  const userResult = (await db
+    .select({
+      total: sql<number>`COALESCE(SUM(${rateLimitEntries.requestCount}), 0)`,
+    })
+    .from(rateLimitEntries)
+    .innerJoin(apiKeys, eq(apiKeys.id, rateLimitEntries.apiKeyId))
+    .where(
+      and(
+        eq(apiKeys.createdById, apiKey.createdById),
+        gte(rateLimitEntries.windowStart, currentWindow - 1)
+      )
+    ))[0];
+
+  if (Number(userResult?.total ?? 0) > userCap) {
+    return { allowed: false, scope: "user" };
+  }
+
+  return { allowed: true, scope: "user" };
 }
 
 export async function cleanupRateLimits() {

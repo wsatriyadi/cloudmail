@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { sessionUser } from "@/lib/authz";
 
 const DOMAIN_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -18,6 +19,10 @@ interface SkippedDomain {
 }
 
 export async function POST(request: Request) {
+  const user = await sessionUser();
+  if (!user) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  if (user.role !== "admin") return NextResponse.json({ error: "Akses admin diperlukan" }, { status: 403 });
+
   try {
     const body = await request.json();
     const parsed = bulkSchema.parse(body);
@@ -39,7 +44,13 @@ export async function POST(request: Request) {
     const added: string[] = [];
     const skipped: SkippedDomain[] = [];
     const seenInBatch = new Set<string>();
-    const toInsert: { id: string; domain: string; description: string | null; isActive: boolean }[] = [];
+    const toInsert: {
+      id: string;
+      domain: string;
+      description: string | null;
+      isActive: boolean;
+      status: string;
+    }[] = [];
 
     for (const domain of rawLines) {
       if (seenInBatch.has(domain)) {
@@ -63,6 +74,7 @@ export async function POST(request: Request) {
         domain,
         description: parsed.description || null,
         isActive: parsed.isActive,
+        status: "approved",
       });
       added.push(domain);
     }

@@ -137,9 +137,9 @@ export function UserTable({ users }: { users: User[] }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">Admin — Akses penuh</SelectItem>
-                    <SelectItem value="pelanggan">Pelanggan — API key + alias milik sendiri</SelectItem>
+                    <SelectItem value="pelanggan">Pelanggan — API key, alias, domain (approval admin), maks. 1000 RPM total</SelectItem>
                     <SelectItem value="viewer">Viewer — Hanya lihat</SelectItem>
-                    <SelectItem value="api-only">API Only — Hanya API</SelectItem>
+                    <SelectItem value="api-only">API Only — Kotak masuk + kunci API</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

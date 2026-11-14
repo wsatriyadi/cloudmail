@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { aliases, domains } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import { apiKeyOwner, usableDomainFilter } from "@/lib/domain-access";
 import { addressesOwnedByApiKey } from "@/lib/address-access";
 
 const aliasSchema = z.object({
@@ -22,9 +23,15 @@ export async function POST(request: Request) {
 
   try {
     const parsed = aliasSchema.parse(await request.json());
-    const domain = (await db.select().from(domains).where(eq(domains.domain, parsed.domain)))[0];
-    if (!domain?.isActive) {
-      return NextResponse.json({ error: "Domain tidak ditemukan atau nonaktif" }, { status: 404 });
+    const owner = await apiKeyOwner(authResult.apiKey!.id);
+    const domain = (await db.select().from(domains).where(
+      and(
+        eq(domains.domain, parsed.domain),
+        usableDomainFilter(owner?.role ?? "api-only", owner?.id ?? null)
+      )
+    ))[0];
+    if (!domain) {
+      return NextResponse.json({ error: "Domain tidak ditemukan atau belum disetujui" }, { status: 404 });
     }
 
     const address = `${parsed.localPart}@${parsed.domain}`.toLowerCase();

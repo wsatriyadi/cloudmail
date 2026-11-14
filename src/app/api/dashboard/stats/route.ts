@@ -53,7 +53,7 @@ export async function GET() {
           await db
             .select({ count: count() })
             .from(domains)
-            .where(eq(domains.isActive, true))
+            .where(and(eq(domains.isActive, true), eq(domains.status, "approved")))
         )[0]?.count ?? 0
       )
     : Number(
@@ -62,7 +62,7 @@ export async function GET() {
             .select({ count: sql<number>`COUNT(DISTINCT ${emails.domainId})` })
             .from(emails)
             .leftJoin(domains, eq(domains.id, emails.domainId))
-            .where(and(scope, eq(domains.isActive, true)))
+            .where(and(scope, eq(domains.isActive, true), eq(domains.status, "approved")))
         )[0]?.count ?? 0
       );
 

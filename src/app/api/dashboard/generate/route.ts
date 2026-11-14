@@ -2,19 +2,23 @@ import { NextResponse } from "next/server";
 import { createIdentity } from "@/lib/identitas";
 import { db } from "@/lib/db";
 import { domains } from "@/lib/db/schema";
-import { sql } from "drizzle-orm";
-import { requireUser } from "@/lib/authz";
+import { canAccessMenu, sessionUser } from "@/lib/authz";
 import { logAudit } from "@/lib/audit";
+import { usableDomainFilter } from "@/lib/domain-access";
 
 // Generate identitas dari dashboard. Semua role boleh memakainya; identitas
 // dicatat atas nama user yang login (bukan API key).
 export async function POST() {
-  const user = await requireUser();
+  const user = await sessionUser();
+  if (!user) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
+  if (!canAccessMenu(user.role, "/dashboard/generate")) {
+    return NextResponse.json({ error: "Role ini tidak memiliki akses generate" }, { status: 403 });
+  }
 
   const activeDomains = await db
     .select({ id: domains.id, domain: domains.domain })
     .from(domains)
-    .where(sql`${domains.isActive} = true`);
+    .where(usableDomainFilter(user.role, user.id));
 
   if (activeDomains.length === 0) {
     return NextResponse.json({ error: "Tidak ada domain aktif" }, { status: 503 });

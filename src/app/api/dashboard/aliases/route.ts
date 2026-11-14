@@ -5,6 +5,7 @@ import { eq, and, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { sessionUser } from "@/lib/authz";
+import { usableDomainFilter } from "@/lib/domain-access";
 
 const aliasSchema = z.object({
   localPart: z.string().min(1).max(64).regex(/^[a-zA-Z0-9._-]+$/, "Hanya huruf, angka, titik, underscore, dan dash"),
@@ -48,8 +49,10 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Tidak terautentikasi" }, { status: 401 });
   try {
     const parsed = aliasSchema.parse(await request.json());
-    const domain = (await db.select().from(domains).where(and(eq(domains.domain, parsed.domain), eq(domains.isActive, true))))[0];
-    if (!domain) return NextResponse.json({ error: "Domain tidak ditemukan" }, { status: 404 });
+    const domain = (await db.select().from(domains).where(
+      and(eq(domains.domain, parsed.domain), usableDomainFilter(user.role, user.id))
+    ))[0];
+    if (!domain) return NextResponse.json({ error: "Domain tidak ditemukan atau belum disetujui" }, { status: 404 });
 
     const address = `${parsed.localPart}@${parsed.domain}`.toLowerCase();
     if ((await db.select({ id: aliases.id }).from(aliases).where(eq(aliases.address, address)))[0]) {

@@ -30,7 +30,15 @@ interface ApiKey {
   createdAt: Date;
 }
 
-export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
+export function ApiKeyTable({
+  apiKeys,
+  totalCap,
+  usedRpm,
+}: {
+  apiKeys: ApiKey[];
+  totalCap: number | null;
+  usedRpm: number;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
@@ -148,6 +156,17 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
 
   return (
     <div className="space-y-4">
+      {totalCap !== null && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          <span>
+            Total rate limit API key aktif: <strong>{usedRpm.toLocaleString("id-ID")}</strong> /{" "}
+            {totalCap.toLocaleString("id-ID")} RPM
+          </span>
+          <span className={usedRpm >= totalCap ? "font-medium text-destructive" : "text-muted-foreground"}>
+            Sisa {Math.max(totalCap - usedRpm, 0).toLocaleString("id-ID")} RPM
+          </span>
+        </div>
+      )}
       <div className="flex justify-end">
         <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
@@ -166,6 +185,12 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
               <div className="space-y-2">
                 <Label>Rate Limit (req/menit)</Label>
                 <Input type="number" value={rateLimit} onChange={(e) => setRateLimit(parseInt(e.target.value) || 100)} />
+                {totalCap !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Batas akun {totalCap} RPM untuk akumulasi semua API key aktif. Sisa kuota saat ini{" "}
+                    {Math.max(totalCap - usedRpm, 0)} RPM.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Izin</Label>
@@ -300,6 +325,11 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKey[] }) {
             />
             <p className="text-xs text-muted-foreground">
               Nilai saat ini: {editing?.rateLimit}/mnt. Rentang {RATE_LIMIT_MIN}–{RATE_LIMIT_MAX}.
+              {totalCap !== null && (
+                <>
+                  {" "}Sisa kuota akun: {Math.max(totalCap - (usedRpm - (editing?.rateLimit ?? 0)), 0)} RPM dari {totalCap} RPM.
+                </>
+              )}
             </p>
           </div>
           <DialogFooter>

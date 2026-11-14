@@ -1,12 +1,28 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { apiKeys } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { logAudit, getClientIP } from "@/lib/audit";
 import { parseRateLimit, RATE_LIMIT_ERROR } from "@/lib/api-keys";
 import { rateLimitCapFor, sessionUser } from "@/lib/authz";
 import crypto from "crypto";
+
+const DEFAULT_RATE_LIMIT = 100;
+
+// Total rate limit yang sudah dipakai API key aktif milik satu user.
+// Role pelanggan dibatasi secara akumulasi (bukan per key).
+async function usedRateLimit(createdById: string, excludeKeyId?: string) {
+  const rows = await db
+    .select({ rateLimit: apiKeys.rateLimit })
+    .from(apiKeys)
+    .where(
+      excludeKeyId
+        ? and(eq(apiKeys.createdById, createdById), eq(apiKeys.isActive, true), ne(apiKeys.id, excludeKeyId))
+        : and(eq(apiKeys.createdById, createdById), eq(apiKeys.isActive, true))
+    );
+  return rows.reduce((sum, row) => sum + row.rateLimit, 0);
+}
 
 export async function POST(request: Request) {
   try {
@@ -15,10 +31,30 @@ export async function POST(request: Request) {
 
     const { name, rateLimit, permissions } = await request.json();
     if (!name) return NextResponse.json({ error: "Nama diperlukan" }, { status: 400 });
+
     const parsedLimit = rateLimit === undefined ? null : parseRateLimit(rateLimit);
+    if (rateLimit !== undefined && parsedLimit === null) {
+      return NextResponse.json({ error: RATE_LIMIT_ERROR }, { status: 400 });
+    }
+
+    const requested = parsedLimit ?? DEFAULT_RATE_LIMIT;
     const cap = rateLimitCapFor(session.role);
-    if (rateLimit !== undefined && (parsedLimit === null || (cap !== null && parsedLimit > cap))) {
-      return NextResponse.json({ error: cap ? `Maksimum ${cap} RPM untuk role pelanggan` : RATE_LIMIT_ERROR }, { status: 400 });
+    if (cap !== null) {
+      if (requested > cap) {
+        return NextResponse.json(
+          { error: `Rate limit maksimum ${cap} RPM untuk role ${session.role}` },
+          { status: 400 }
+        );
+      }
+      const used = await usedRateLimit(session.id);
+      if (used + requested > cap) {
+        return NextResponse.json(
+          {
+            error: `Total rate limit semua API key aktif maksimum ${cap} RPM. Terpakai ${used} RPM, sisa ${Math.max(cap - used, 0)} RPM.`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const rawKey = `tm_${crypto.randomBytes(24).toString("hex")}`;
@@ -32,7 +68,7 @@ export async function POST(request: Request) {
         keyHash,
         keyPrefix,
         permissions: JSON.stringify(permissions || ["generate", "inbox"]),
-        rateLimit: parsedLimit ?? (cap ?? 100),
+        rateLimit: requested,
         createdById: session.id,
       });
 
@@ -58,15 +94,39 @@ export async function PATCH(request: Request) {
     if (isActive !== undefined) updates.isActive = isActive;
     if (rateLimit !== undefined) {
       const parsed = parseRateLimit(rateLimit);
-      const cap = rateLimitCapFor(session.role);
-      if (parsed === null || (cap !== null && parsed > cap)) {
-        return NextResponse.json({ error: cap ? `Maksimum ${cap} RPM untuk role pelanggan` : RATE_LIMIT_ERROR }, { status: 400 });
+      if (parsed === null) {
+        return NextResponse.json({ error: RATE_LIMIT_ERROR }, { status: 400 });
       }
       updates.rateLimit = parsed;
     }
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: "Tidak ada perubahan" }, { status: 400 });
     }
+
+    // Validasi akumulasi milik pemilik key, termasuk saat key diaktifkan lagi.
+    const cap = rateLimitCapFor(session.role);
+    if (cap !== null) {
+      const nextLimit = updates.rateLimit ?? before.rateLimit;
+      const nextActive = updates.isActive ?? before.isActive;
+      if (nextLimit > cap) {
+        return NextResponse.json(
+          { error: `Rate limit maksimum ${cap} RPM untuk role ${session.role}` },
+          { status: 400 }
+        );
+      }
+      if (nextActive) {
+        const used = await usedRateLimit(before.createdById, id);
+        if (used + nextLimit > cap) {
+          return NextResponse.json(
+            {
+              error: `Total rate limit semua API key aktif maksimum ${cap} RPM. Terpakai ${used} RPM, sisa ${Math.max(cap - used, 0)} RPM.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     await db.update(apiKeys).set(updates).where(eq(apiKeys.id, id));
     if (updates.rateLimit !== undefined && updates.rateLimit !== before.rateLimit) {
       await logAudit({

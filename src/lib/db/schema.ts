@@ -19,9 +19,15 @@ export const domains = pgTable("domains", {
   isActive: boolean("is_active").notNull().default(true),
   cloudflareZoneId: text("cloudflare_zone_id"),
   description: text("description"),
+  // Domain yang ditambahkan pelanggan berstatus pending sampai disetujui admin.
+  status: text("status").notNull().default("approved"), // pending, approved, rejected
+  createdById: text("created_by_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_domains_created_by").on(table.createdById),
+  index("idx_domains_status").on(table.status),
+]);
 
 // ─── Received Emails ─────────────────────────────────────────
 // Body besar disimpan terpisah (email_bodies) agar baris tetap kecil.

@@ -33,25 +33,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash2, Pencil, Loader2, Globe, Info, CheckCircle2, XCircle, Search } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Globe, Info, CheckCircle2, XCircle, Search, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Domain {
   id: string;
   domain: string;
   isActive: boolean;
+  status: string;
   description: string | null;
   createdAt: Date;
+  ownerEmail: string | null;
   emailCount: number;
 }
 
-export function DomainTable({ domains }: { domains: Domain[] }) {
+export function DomainTable({ domains, role }: { domains: Domain[]; role: string }) {
   const router = useRouter();
   const { toast } = useToast();
+  const isAdmin = role === "admin";
   const [showAdd, setShowAdd] = useState(false);
   const [showDelete, setShowDelete] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState<Domain | null>(null);
   const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
 
   // Search & Filter
@@ -81,8 +85,9 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
 
       const matchStatus =
         statusFilter === "all" ||
-        (statusFilter === "active" && d.isActive) ||
-        (statusFilter === "inactive" && !d.isActive);
+        (statusFilter === "pending" && d.status === "pending") ||
+        (statusFilter === "approved" && d.status === "approved") ||
+        (statusFilter === "rejected" && d.status === "rejected");
 
       return matchSearch && matchStatus;
     });
@@ -105,7 +110,12 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
         body: JSON.stringify({ domain, description, isActive }),
       });
       if (!res.ok) throw new Error(await res.text());
-      toast({ title: "Berhasil", description: "Domain ditambahkan" });
+      toast({
+        title: "Berhasil",
+        description: isAdmin
+          ? "Domain ditambahkan"
+          : "Domain ditambahkan dan menunggu persetujuan admin",
+      });
       setShowAdd(false);
       resetForm();
       router.refresh();
@@ -141,7 +151,7 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
     setLoading(true);
     try {
       const res = await fetch("/api/dashboard/domains", {
-        method: "PATCH",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: showEdit.id, domain, description, isActive }),
       });
@@ -190,6 +200,41 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
     }
   }
 
+  async function handleReview(id: string, status: "approved" | "rejected") {
+    setBusyId(id);
+    try {
+      const res = await fetch("/api/dashboard/domains", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({
+        title: status === "approved" ? "Domain disetujui" : "Domain ditolak",
+        description: status === "approved" ? "Domain sekarang aktif dan bisa dipakai." : "Domain tidak bisa dipakai pelanggan.",
+      });
+      router.refresh();
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: String(error) });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function renderStatus(d: Domain) {
+    if (d.status === "pending") return <Badge variant="warning">Menunggu</Badge>;
+    if (d.status === "rejected") return <Badge variant="destructive">Ditolak</Badge>;
+    return (
+      <Badge
+        variant={d.isActive ? "success" : "secondary"}
+        className={isAdmin ? "cursor-pointer" : undefined}
+        onClick={isAdmin ? () => handleToggle(d.id, d.isActive) : undefined}
+      >
+        {d.isActive ? "Aktif" : "Nonaktif"}
+      </Badge>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header Actions */}
@@ -209,13 +254,14 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
 
           {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]" aria-label="Filter status">
+            <SelectTrigger className="w-[150px]" aria-label="Filter status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value="active">Aktif</SelectItem>
-              <SelectItem value="inactive">Nonaktif</SelectItem>
+              <SelectItem value="pending">Menunggu</SelectItem>
+              <SelectItem value="approved">Disetujui</SelectItem>
+              <SelectItem value="rejected">Ditolak</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -231,13 +277,15 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
             <DialogHeader>
               <DialogTitle>Tambah Domain Baru</DialogTitle>
               <DialogDescription>
-                Masukkan domain yang akan digunakan untuk menerima email sementara.
+                {isAdmin
+                  ? "Masukkan domain yang akan digunakan untuk menerima email sementara."
+                  : "Domain akan berstatus menunggu dan bisa dipakai setelah disetujui admin."}
               </DialogDescription>
             </DialogHeader>
             <Tabs value={addMode} onValueChange={(v) => { setAddMode(v); setBulkResult(null); }}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={`grid w-full ${isAdmin ? "grid-cols-2" : "grid-cols-1"}`}>
                 <TabsTrigger value="single">Satu Domain</TabsTrigger>
-                <TabsTrigger value="bulk">Banyak Domain</TabsTrigger>
+                {isAdmin && <TabsTrigger value="bulk">Banyak Domain</TabsTrigger>}
               </TabsList>
 
               <TabsContent value="single">
@@ -250,69 +298,77 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
                     <Label>Deskripsi (opsional)</Label>
                     <Textarea placeholder="Catatan tentang domain ini" value={description} onChange={(e) => setDescription(e.target.value)} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={isActive} onCheckedChange={setIsActive} />
-                    <Label>Aktif</Label>
-                  </div>
+                  {isAdmin ? (
+                    <div className="flex items-center gap-2">
+                      <Switch checked={isActive} onCheckedChange={setIsActive} />
+                      <Label>Aktif</Label>
+                    </div>
+                  ) : (
+                    <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                      Domain tidak langsung aktif. Admin harus menyetujui permintaan ini terlebih dahulu.
+                    </p>
+                  )}
                 </div>
                 <DialogFooter className="mt-4">
                   <Button variant="outline" onClick={() => setShowAdd(false)}>Batal</Button>
                   <Button onClick={handleAdd} disabled={loading || !domain}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Tambah
+                    {isAdmin ? "Tambah" : "Ajukan Domain"}
                   </Button>
                 </DialogFooter>
               </TabsContent>
 
-              <TabsContent value="bulk">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Daftar Domain</Label>
-                    <Textarea
-                      placeholder={"mail.contoh.com\nmail.contoh2.com\nmail.contoh3.com"}
-                      className="min-h-[140px] font-mono text-sm"
-                      value={bulkText}
-                      onChange={(e) => setBulkText(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Satu domain per baris. Baris kosong, duplikat, format tidak valid, dan yang sudah terdaftar akan dilewati otomatis.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Deskripsi (opsional)</Label>
-                    <Textarea placeholder="Diterapkan ke semua domain di daftar" value={description} onChange={(e) => setDescription(e.target.value)} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={isActive} onCheckedChange={setIsActive} />
-                    <Label>Aktif</Label>
-                  </div>
-
-                  {bulkResult && (
-                    <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-3 text-sm">
-                      {bulkResult.added.length > 0 && (
-                        <p className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                          <CheckCircle2 className="h-4 w-4" />
-                          {bulkResult.added.length} ditambahkan
-                        </p>
-                      )}
-                      {bulkResult.skipped.map((s) => (
-                        <p key={s.domain} className="flex items-center gap-2 text-muted-foreground">
-                          <XCircle className="h-4 w-4 text-destructive" />
-                          <span className="font-mono">{s.domain}</span>
-                          <span className="text-xs">— {s.reason}</span>
-                        </p>
-                      ))}
+              {isAdmin && (
+                <TabsContent value="bulk">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Daftar Domain</Label>
+                      <Textarea
+                        placeholder={"mail.contoh.com\nmail.contoh2.com\nmail.contoh3.com"}
+                        className="min-h-[140px] font-mono text-sm"
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Satu domain per baris. Baris kosong, duplikat, format tidak valid, dan yang sudah terdaftar akan dilewati otomatis.
+                      </p>
                     </div>
-                  )}
-                </div>
-                <DialogFooter className="mt-4">
-                  <Button variant="outline" onClick={() => setShowAdd(false)}>Tutup</Button>
-                  <Button onClick={handleBulkAdd} disabled={loading || !bulkText.trim()}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Tambah Semua
-                  </Button>
-                </DialogFooter>
-              </TabsContent>
+                    <div className="space-y-2">
+                      <Label>Deskripsi (opsional)</Label>
+                      <Textarea placeholder="Diterapkan ke semua domain di daftar" value={description} onChange={(e) => setDescription(e.target.value)} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={isActive} onCheckedChange={setIsActive} />
+                      <Label>Aktif</Label>
+                    </div>
+
+                    {bulkResult && (
+                      <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-3 text-sm">
+                        {bulkResult.added.length > 0 && (
+                          <p className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            {bulkResult.added.length} ditambahkan
+                          </p>
+                        )}
+                        {bulkResult.skipped.map((s) => (
+                          <p key={s.domain} className="flex items-center gap-2 text-muted-foreground">
+                            <XCircle className="h-4 w-4 text-destructive" />
+                            <span className="font-mono">{s.domain}</span>
+                            <span className="text-xs">— {s.reason}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter className="mt-4">
+                    <Button variant="outline" onClick={() => setShowAdd(false)}>Tutup</Button>
+                    <Button onClick={handleBulkAdd} disabled={loading || !bulkText.trim()}>
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Tambah Semua
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
+              )}
             </Tabs>
           </DialogContent>
         </Dialog>
@@ -346,7 +402,7 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog (admin) */}
       <Dialog open={!!showEdit} onOpenChange={(open) => { if (!open) { setShowEdit(null); resetForm(); } }}>
         <DialogContent>
           <DialogHeader>
@@ -376,7 +432,7 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation (admin) */}
       <Dialog open={!!showDelete} onOpenChange={(open) => { if (!open) setShowDelete(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -407,7 +463,9 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
           <p className="mt-1 max-w-sm text-sm text-muted-foreground">
             {search || statusFilter !== "all"
               ? "Ubah kata kunci atau filter status."
-              : "Tambahkan domain pertama Anda untuk mulai menerima email."}
+              : isAdmin
+                ? "Tambahkan domain pertama Anda untuk mulai menerima email."
+                : "Ajukan domain pertama Anda untuk mulai menerima email."}
           </p>
         </div>
       ) : (
@@ -418,9 +476,10 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
                 <TableHead>Domain</TableHead>
                 <TableHead>Deskripsi</TableHead>
                 <TableHead>Status</TableHead>
+                {isAdmin && <TableHead>Pemilik</TableHead>}
                 <TableHead className="text-right">Email</TableHead>
                 <TableHead>Dibuat</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                {isAdmin && <TableHead className="text-right">Aksi</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -430,15 +489,12 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
                   <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
                     {d.description || "-"}
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={d.isActive ? "success" : "secondary"}
-                      className="cursor-pointer"
-                      onClick={() => handleToggle(d.id, d.isActive)}
-                    >
-                      {d.isActive ? "Aktif" : "Nonaktif"}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{renderStatus(d)}</TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-sm text-muted-foreground">
+                      {d.ownerEmail || "-"}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right font-medium">
                     {d.emailCount.toLocaleString("id-ID")}
                   </TableCell>
@@ -449,25 +505,52 @@ export function DomainTable({ domains }: { domains: Domain[] }) {
                       year: "numeric",
                     })}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setDomain(d.domain);
-                          setDescription(d.description || "");
-                          setIsActive(d.isActive);
-                          setShowEdit(d);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setShowDelete(d.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        {d.status === "pending" && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-emerald-600 hover:text-emerald-700"
+                              title="Setujui domain"
+                              disabled={busyId === d.id}
+                              onClick={() => handleReview(d.id, "approved")}
+                            >
+                              {busyId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              title="Tolak domain"
+                              disabled={busyId === d.id}
+                              onClick={() => handleReview(d.id, "rejected")}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Edit domain"
+                          onClick={() => {
+                            setDomain(d.domain);
+                            setDescription(d.description || "");
+                            setIsActive(d.isActive);
+                            setShowEdit(d);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Hapus domain" onClick={() => setShowDelete(d.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

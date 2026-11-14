@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { SettingsForm } from "@/components/settings/settings-form";
-import { requireUser } from "@/lib/authz";
+import { requireMenuAccess } from "@/lib/authz";
 
 async function getSettings() {
   const rows = await db.select().from(settings);
@@ -13,7 +13,7 @@ async function getSettings() {
 }
 
 export default async function SettingsPage() {
-  const user = await requireUser();
+  const user = await requireMenuAccess("/dashboard/settings");
   const settingsMap = await getSettings();
 
   return (

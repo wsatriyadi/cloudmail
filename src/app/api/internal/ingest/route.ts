@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const payload = JSON.parse(body);
 
     const toDomain = payload.to.split("@")[1];
-    const domain = (await db.select().from(domains).where(and(eq(domains.domain, toDomain), eq(domains.isActive, true))))[0];
+    const domain = (await db.select().from(domains).where(and(eq(domains.domain, toDomain), eq(domains.isActive, true), eq(domains.status, "approved"))))[0];
 
     if (!domain) {
       return NextResponse.json({ error: "Domain tidak ditemukan atau nonaktif" }, { status: 404 });

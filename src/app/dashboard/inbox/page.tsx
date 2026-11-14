@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { emails, domains } from "@/lib/db/schema";
 import { desc, sql, count } from "drizzle-orm";
 import { emailScopeCondition } from "@/lib/address-access";
-import { requireUser } from "@/lib/authz";
+import { requireMenuAccess } from "@/lib/authz";
+import { usableDomainFilter } from "@/lib/domain-access";
 import { describeRetention, getRetentionDays } from "@/lib/retention";
 import { InboxTable } from "@/components/inbox/inbox-table";
 
@@ -16,13 +17,14 @@ export default async function InboxPage({
   const pageSize = 50;
   const offset = (currentPage - 1) * pageSize;
 
-  const user = await requireUser();
+  const user = await requireMenuAccess("/dashboard/inbox");
   const scope = emailScopeCondition(user.id, user.role);
   const retentionDays = await getRetentionDays();
 
   const allDomains = await db
     .select({ id: domains.id, domain: domains.domain })
     .from(domains)
+    .where(usableDomainFilter(user.role, user.id))
     .orderBy(domains.domain);
 
   // Get total count

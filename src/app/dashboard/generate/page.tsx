@@ -1,8 +1,8 @@
 import { IdentityGenerator } from "@/components/generate/identity-generator";
-import { requireUser } from "@/lib/authz";
+import { requireMenuAccess } from "@/lib/authz";
 
 export default async function GeneratePage() {
-  await requireUser();
+  await requireMenuAccess("/dashboard/generate");
 
   return (
     <div className="space-y-6">
